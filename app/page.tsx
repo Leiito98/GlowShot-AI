@@ -1,485 +1,612 @@
 "use client";
+
 import { useState, useEffect, useCallback } from "react";
-import { useUser, SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import { createClient } from "@supabase/supabase-js";
-import JSZip from "jszip";
-import { getPromptsForPack } from "../lib/prompts";
+import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/app/lib/supabase";
+import { getPromptsForPack } from "@/lib/prompts";
 
-// --- CONFIGURACIÓN DE LOS PLANES (precios actualizados) ---
-const PLANS = [
-  {
-    id: "basic",
-    name: "Starter Pack",
-    price: 9.99,
-    originalPrice: 12.99,
-    photos: 40,
-    features: ["45 min de generación", "1 atuendo a elegir", "Resolución estándar"],
-    highlight: false
-  },
-  {
-    id: "standard",
-    name: "Pro Pack",
-    price: 14.99,
-    originalPrice: 19.99,
-    photos: 60,
-    features: ["30 min de generación", "Elección de 2 atuendos", "Resolución estándar"],
-    highlight: true,
-    tag: "🧡 El más elegido"
-  },
-  {
-    id: "executive",
-    name: "Ultra Pack",
-    price: 24.99,
-    originalPrice: 34.99,
-    photos: 100,
-    features: ["15 min de generación", "Todos los atuendos", "Resolución mejorada"],
-    highlight: false,
-    tag: "+ Mejor valor"
+import { HeaderBar } from "@/app/components/layout/HeaderBar";
+import { HomeView } from "@/app/components/views/HomeView";
+import { UploadView } from "@/app/components/views/UploadView";
+import { StudioView } from "@/app/components/views/StudioView";
+import { GalleryView } from "@/app/components/views/GalleryView";
+import { PayModal } from "@/app/components/modals/PayModal";
+
+import { Plan, PlanId } from "@/app/config/plans";
+import {
+  UXGender,
+  AgeRange,
+  HairColor,
+  HairLength,
+  HairStyle,
+  Ethnicity,
+  BodyType,
+  Attire,
+  Background,
+} from "@/app/types/studio";
+
+type View = "home" | "upload" | "studio" | "gallery";
+
+// ---------- TOASTS GLOBALES ----------
+
+type ToastType = "warning" | "info" | "success" | "error";
+
+type ToastMessage = {
+  id: number;
+  type: ToastType;
+  message: string;
+};
+
+function getToastStyles(type: ToastType) {
+  switch (type) {
+    case "success":
+      return {
+        container: "bg-emerald-50 border-emerald-300",
+        iconBg: "bg-emerald-100",
+        icon: "✔",
+        text: "text-emerald-900",
+      };
+    case "info":
+      return {
+        container: "bg-blue-50 border-blue-300",
+        iconBg: "bg-blue-100",
+        icon: "ℹ",
+        text: "text-blue-900",
+      };
+    case "error":
+      return {
+        container: "bg-red-50 border-red-300",
+        iconBg: "bg-red-100",
+        icon: "✖",
+        text: "text-red-900",
+      };
+    case "warning":
+    default:
+      return {
+        container: "bg-orange-50 border-orange-300",
+        iconBg: "bg-orange-100",
+        icon: "⚠",
+        text: "text-orange-900",
+      };
   }
-];
-
-// --- NUEVAS CATEGORÍAS DE ESTILO ---
-const STYLE_CATEGORIES = [
-  { key: "Professional", label: "💼 LinkedIn" },
-  { key: "Dating", label: "❤️ Citas" },
-  { key: "Social", label: "🤳 Historias/Social" },
-  { key: "Lifestyle", label: "✈️ Viajes" },
-];
+}
 
 export default function Home() {
   const { user } = useUser();
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // VISTAS
-  const [view, setView] = useState<"home" | "upload" | "studio" | "gallery">("home");
+  // Vistas
+  const [view, setView] = useState<View>("home");
+
+  // Plan / preferencias
+  const [currentPlan, setCurrentPlan] = useState<PlanId | null>(null);
+  const [hasCompletedPreferences, setHasCompletedPreferences] =
+    useState(false);
 
   // Estados Lógicos
   const [trainingId, setTrainingId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("idle");
   const [weightsUrl, setWeightsUrl] = useState<string | null>(null);
+
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
-  const [zipUrl, setZipUrl] = useState<string>("");
 
-  // Negocio
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [credits, setCredits] = useState<number>(0);
-  const [gender, setGender] = useState<"man" | "woman">("woman");
-  const [selectedStyle, setSelectedStyle] = useState<string>("Professional"); // ESTADO DE ESTILO
+
+  // Studio prefs
+  const [gender, setGender] = useState<UXGender>("woman");
+  const [selectedStyle, setSelectedStyle] = useState<string>("Professional");
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
   const [showPayModal, setShowPayModal] = useState(false);
 
-  // --- FUNCIONES DE BASE DE DATOS Y CARGA ---
+  const [ageRange, setAgeRange] = useState<AgeRange>("25_29");
+  const [hairColor, setHairColor] = useState<HairColor>("black");
+  const [hairLength, setHairLength] = useState<HairLength>("short");
+  const [hairStyle, setHairStyle] = useState<HairStyle>("straight");
+  const [ethnicity, setEthnicity] = useState<Ethnicity>("hispanic");
+  const [bodyType, setBodyType] = useState<BodyType>("athletic");
+  const [attires, setAttires] = useState<Attire[]>([]);
+  const [backgrounds, setBackgrounds] = useState<Background[]>([]);
 
+  // ---------- TOAST STATE GLOBAL ----------
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const pushToast = (message: string, type: ToastType = "info") => {
+    const id = Date.now() + Math.random();
+    const toast: ToastMessage = { id, type, message };
+    setToasts((prev) => [...prev, toast]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  };
+
+  const closeToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // --- Cargar galería ---
   const loadGallery = async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/my-images');
+      const res = await fetch("/api/my-images");
       const data = await res.json();
       if (data.images) setGalleryImages(data.images);
-    } catch (error) { console.error("Error cargando galería:", error); }
+    } catch (error) {
+      console.error("Error cargando galería:", error);
+    }
   };
 
+  // --- Leer créditos ---
   const fetchCredits = async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/get-credits');
+      const res = await fetch("/api/get-credits");
       if (!res.ok) throw new Error("API falló al leer créditos");
       const data = await res.json();
       setCredits(data.credits);
-    } catch (e) {
+    } catch {
       setCredits(0);
     }
   };
 
-  // 1. CARGA INICIAL Y POLLING
+  // Carga inicial y polling
   useEffect(() => {
     setIsLoaded(true);
     let intervalId: NodeJS.Timeout;
 
-    async function loadDataAndSetupPolling() {
+    // leer plan + prefs desde localStorage
+    if (typeof window !== "undefined") {
+      const savedPlan = window.localStorage.getItem("plan_id") as
+        | PlanId
+        | null;
+      if (savedPlan) setCurrentPlan(savedPlan);
+
+      const savedPrefs = window.localStorage.getItem(
+        "hasCompletedPreferences"
+      );
+      if (savedPrefs === "1") {
+        setHasCompletedPreferences(true);
+      }
+    }
+
+    async function init() {
       if (!user) return;
 
       await fetchCredits();
+      loadGallery();
 
+      // Revisar si tiene un modelo entrenado anteriormente
       try {
         const { data: model } = await supabase
-          .from('predictions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'succeeded')
-          .order('created_at', { ascending: false })
+          .from("predictions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: false })
           .limit(1)
           .single();
 
-        if ((model as any)?.model_version) {
-          setWeightsUrl((model as any).model_version);
+        if (model?.lora_url) {
+          setWeightsUrl(model.lora_url);
+          // si ya viene con modelo, asumimos que ya configuró antes
+          setHasCompletedPreferences(true);
         }
       } catch (e) {
-        // si no hay modelo, no pasa nada
+        console.error(e);
       }
-
-      loadGallery();
 
       intervalId = setInterval(() => {
         fetchCredits();
       }, 10000);
     }
 
-    loadDataAndSetupPolling();
-    return () => { if (intervalId) clearInterval(intervalId); };
+    init();
 
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [user]);
 
-  // --- FUNCIONES LÓGICAS (Upload, Train, etc) ---
+  // --- Subida de fotos ---
+  const handleFileUpload: React.ChangeEventHandler<HTMLInputElement> =
+    useCallback(
+      async (e) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        if (!user) {
+          pushToast("Inicia sesión antes de subir fotos.", "warning");
+          return;
+        }
 
-  // FIX DE TYPESCRIPT: Usamos useCallback para envolver la función asíncrona de carga
-  const handleFileUpload: React.ChangeEventHandler<HTMLInputElement> = useCallback(async (e) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    if (!user) return alert("Inicia sesión antes de subir fotos");
-    setIsUploading(true);
-    setUploadProgress("Comprimiendo...");
-    try {
-      const files = Array.from(e.target.files);
-      const zip = new JSZip();
-      files.forEach((file) => zip.file(file.name, file));
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      setUploadProgress("Subiendo...");
-      const fileName = `${user.id}-${Date.now()}.zip`;
-      const { error } = await supabase.storage.from('training_files').upload(fileName, zipBlob, { contentType: 'application/zip' });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from('training_files').getPublicUrl(fileName);
-      setZipUrl(urlData.publicUrl);
-      setUploadProgress("✅ Fotos Listas");
-    } catch (error: any) { alert("Error: " + (error?.message || String(error))); } finally { setIsUploading(false); }
-  }, [user]);
+        setIsUploading(true);
+        setUploadProgress("Subiendo fotos...");
 
+        try {
+          const files = Array.from(e.target.files);
+          const newUrls: string[] = [];
+
+          for (const file of files) {
+            const filePath = `training/${user.id}/${Date.now()}-${file.name}`;
+
+            const { error } = await supabase.storage
+              .from("training_files")
+              .upload(filePath, file, { contentType: file.type });
+
+            if (error) throw error;
+
+            const { data: publicData } = supabase.storage
+              .from("training_files")
+              .getPublicUrl(filePath);
+
+            newUrls.push(publicData.publicUrl);
+          }
+
+          setUploadedImages((prev) => [...prev, ...newUrls]);
+          setUploadProgress("✅ Fotos listas");
+          pushToast("Fotos cargadas correctamente. Ya podés entrenar.", "success");
+        } catch (error: any) {
+          pushToast("Error al subir fotos. Inténtalo de nuevo.", "error");
+          console.error(error);
+        } finally {
+          setIsUploading(false);
+        }
+      },
+      [user]
+    );
+
+  // --- Iniciar entrenamiento ---
   const startTraining = async () => {
-    if (!zipUrl) return alert("Sube fotos primero");
+    if (uploadedImages.length < 5) {
+      pushToast("Debes subir al menos 5 fotos para entrenar tu modelo.", "warning");
+      return;
+    }
+
     setStatus("starting");
+
     try {
-      const res = await fetch("/api/train", { method: "POST", body: JSON.stringify({ zipUrl }), headers: { "Content-Type": "application/json" } });
+      pushToast("Iniciando entrenamiento de tu modelo...", "info");
+
+      const res = await fetch("/api/train", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: uploadedImages }),
+      });
+
       const data = await res.json();
-      setTrainingId(data.id); setStatus(data.status);
-    } catch (error: any) { alert("Error: " + (error?.message || String(error))); setStatus("idle"); }
+      setTrainingId(data.id);
+      setStatus(data.status);
+    } catch (error: any) {
+      pushToast("Error al iniciar el entrenamiento.", "error");
+      console.error(error);
+      setStatus("idle");
+    }
   };
 
+  // --- Chequear estado ---
   const checkStatus = async () => {
     if (!trainingId) return;
+
     try {
-      const res = await fetch("/api/status", { method: "POST", body: JSON.stringify({ trainingId }), headers: { "Content-Type": "application/json" } });
+      const res = await fetch("/api/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingId }),
+      });
+
       const data = await res.json();
       setStatus(data.status);
-      if (data.weights) { setWeightsUrl(data.weights); setView("studio"); alert("¡Modelo Listo!"); }
-    } catch (error) { console.error(error); }
-  };
 
-  const buyPlan = async (plan: typeof PLANS[0]) => {
-    const confirm = window.confirm(`Ir a pago de $${plan.price} USD?`);
-    if (!confirm) return;
-    try {
-      const res = await fetch("/api/buy-credits", { method: "POST", body: JSON.stringify({ packSize: plan.photos }), headers: { "Content-Type": "application/json" } });
-      const data = await res.json();
-      if (data.success) {
-        setCredits(data.newCredits); setShowPayModal(false);
-        // Lógica inteligente post-compra
-        if (weightsUrl) setView("studio");
-        else if (zipUrl) startTraining();
-        else setView("upload");
-      } else {
-        alert("Pago no completado.");
+      if (data.status === "completed" && data.weights) {
+        setWeightsUrl(data.weights);
+
+        if (data.trigger) {
+          localStorage.setItem("trigger_word", data.trigger);
+        }
+
+        setView("studio");
+        pushToast("Tu modelo Flux está listo. ¡Ya puedes generar fotos! ✨", "success");
       }
-    } catch (e) { alert("Error en el pago"); }
+    } catch (error) {
+      console.error("Error checkStatus:", error);
+      pushToast("No se pudo actualizar el estado del entrenamiento.", "error");
+    }
   };
 
+  // --- Comprar plan ---
+  const buyPlan = async (plan: Plan) => {
+    pushToast(
+      `Procesando compra de ${plan.name} por $${plan.price} USD...`,
+      "info"
+    );
+
+    try {
+      const res = await fetch("/api/buy-credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packSize: plan.photos,
+          planId: plan.id,   // 👈 IMPORTANTE
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setCredits(data.newCredits);
+        setShowPayModal(false);
+
+        setCurrentPlan(plan.id);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("plan_id", plan.id);
+        }
+
+        pushToast(
+          `¡${plan.name} activado! Se acreditaron ${plan.photos} créditos a tu cuenta.`,
+          "success"
+        );
+
+        if (data.success) {
+          setCredits(data.newCredits);
+          setShowPayModal(false);
+  
+          setCurrentPlan(plan.id);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("plan_id", plan.id);
+          }
+  
+          // 👇 nuevo flujo
+          if (!hasCompletedPreferences) {
+            // primero configuramos rasgos
+            setView("studio");
+          } else if (weightsUrl) {
+            // ya tiene modelo
+            setView("studio");
+          } else if (uploadedImages.length > 0) {
+            // ya subió fotos antes, arrancamos entrenamiento
+            startTraining();
+          } else {
+            // caso clásico: todavía no subió fotos
+            setView("upload");
+          }
+        }
+      } else {
+        pushToast(
+          data.error || "No se pudo procesar el pago. Inténtalo de nuevo.",
+          "error"
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      pushToast(
+        "Ocurrió un error de red al procesar el pago. Inténtalo más tarde.",
+        "error"
+      );
+    }
+  };
+
+
+  // --- Generar foto ---
   const generatePhotos = async () => {
-    if (credits <= 0) { setShowPayModal(true); return; }
-    const amount = 1;
+    if (credits <= 0) {
+      setShowPayModal(true);
+      // el toast de "sin créditos" lo dispara StudioView antes de llamar a esto
+      return;
+    }
+
     setIsGeneratingBatch(true);
 
-    const prompts = getPromptsForPack(gender, amount, selectedStyle);
+    const effectiveGender: "man" | "woman" =
+      gender === "non_binary" ? "woman" : gender;
+
+    const prompts = getPromptsForPack(effectiveGender, 1, selectedStyle);
 
     try {
-      const res = await fetch("/api/generate", { method: "POST", body: JSON.stringify({ prompt: prompts[0], weightsUrl }), headers: { "Content-Type": "application/json" } });
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompts[0],
+          weightsUrl,
+          trainingId,
+          selections: {
+            gender,
+            ageRange,
+            hairColor,
+            hairLength,
+            hairStyle,
+            ethnicity,
+            bodyType,
+            attires,
+            backgrounds,
+            styleCategory: selectedStyle,
+          },
+        }),
+      });
+
       const data = await res.json();
+
       if (data.imageUrl) {
-        setGeneratedImages(prev => [data.imageUrl, ...prev]);
+        setGeneratedImages((prev) => [data.imageUrl, ...prev]);
         setCredits(data.remainingCredits);
         loadGallery();
+        pushToast("Foto generada correctamente ✅", "success");
+      } else if (data.error) {
+        pushToast(data.error, "error");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+      pushToast("Error al generar la foto. Inténtalo nuevamente.", "error");
+    }
+
     setIsGeneratingBatch(false);
   };
 
+  // --- Terminar wizard inicial ---
+  const handleFinishSetup = async () => {
+    try {
+      // si hay usuario logueado, guardamos sus rasgos
+      if (user) {
+        await fetch("/api/save-preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            gender,
+            ageRange,
+            hairColor,
+            hairLength,
+            hairStyle,
+            ethnicity,
+            bodyType,
+          }),
+        });
+      }
+    } catch (e) {
+      console.error("Error guardando preferencias:", e);
+      // si falla igual dejamos seguir, pero ya lo ves en consola
+    }
+
+    setHasCompletedPreferences(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("hasCompletedPreferences", "1");
+    }
+    setView("upload");
+  };
+
+
+  // --- Click CTA principal ---
   const handleCreateClick = () => {
     if (credits > 0) {
-      if (weightsUrl) {
+      if (!hasCompletedPreferences) {
+        setView("studio");
+      } else if (weightsUrl) {
         setView("studio");
       } else {
         setView("upload");
       }
     } else {
       setShowPayModal(true);
+      pushToast(
+        "Necesitas créditos para empezar. Elige un paquete para continuar.",
+        "info"
+      );
     }
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-white" aria-hidden />;
+  if (!isLoaded) {
+    return <div className="min-h-screen bg-white" aria-hidden />;
+  }
 
   return (
     <div className="min-h-screen font-sans bg-white text-gray-900 selection:bg-orange-100 selection:text-orange-900">
-
-      {/* HEADER BLANCO LIMPIO */}
-      <header className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-30">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView("home")}>
-          <div className="w-8 h-8 bg-[#ff5a1f] rounded-full flex items-center justify-center font-bold text-white text-sm">A</div>
-          <h1 className="text-xl font-bold tracking-tight text-gray-900">GlowShot.ai</h1>
-        </div>
-
-        <div className="flex gap-4 items-center">
-          <SignedIn>
-            {/* MENÚ DE NAVEGACIÓN SIMPLE */}
-            <nav className="hidden md:flex gap-6 mr-4 text-sm font-medium text-gray-600" aria-label="Main navigation">
-              <button onClick={() => setView("home")} className={`hover:text-[#ff5a1f] ${view === 'home' ? 'text-[#ff5a1f]' : ''}`}>Inicio</button>
-              <button onClick={() => setView("studio")} className={`hover:text-[#ff5a1f] ${view === 'studio' ? 'text-[#ff5a1f]' : ''}`}>Estudio</button>
-              <button onClick={() => setView("gallery")} className={`hover:text-[#ff5a1f] ${view === 'gallery' ? 'text-[#ff5a1f]' : ''}`}>Mis Retratos</button>
-            </nav>
-
-            {/* Créditos ahora visibles y actualizados vía Polling */}
-            {credits > 0 && <div className="bg-orange-50 text-orange-700 px-4 py-1.5 rounded-full text-sm font-bold border border-orange-100 mr-2" aria-live="polite">📸 {credits} Créditos</div>}
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal"><button className="bg-[#ff5a1f] text-white px-5 py-2 rounded-full font-bold hover:bg-[#e04f1b] transition">Comenzar</button></SignInButton>
-          </SignedOut>
-        </div>
-      </header>
+      <HeaderBar view={view} setView={setView} credits={credits} />
 
       <main className="pb-20">
         <SignedOut>
-          {/* --- LANDING PAGE MEJORADA --- */}
-          <section className="max-w-7xl mx-auto px-6 pt-20 text-center">
-            <div className="inline-block bg-orange-50 text-orange-600 px-4 py-1.5 rounded-full text-sm font-bold mb-6 uppercase tracking-wider">✨ La empresa Nº1 en fotografía de retratos AI</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-              <div>
-                <h2 className="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight text-gray-900">Tu mejor versión en <span className="text-[#ff5a1f]">fotos IA</span></h2>
-                <p className="text-gray-600 text-lg mb-8">Generá headshots profesionales, fotos para Tinder o contenido social en minutos. Subís tus selfies y recibís packs listos para usar.</p>
-                <div className="flex gap-3 justify-center">
-                  <SignInButton mode="modal">
-                    <button className="bg-[#ff5a1f] text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-[#e04f1b] shadow-lg">Crear mis fotos IA</button>
-                  </SignInButton>
-                  <a href="#pricing" className="px-6 py-4 rounded-full border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50">Ver planes</a>
-                </div>
-                <div className="mt-8 grid grid-cols-3 gap-3 max-w-md mx-auto opacity-80">
-                  <img src="https://source.unsplash.com/random/200x300?portrait,smile" alt="Ejemplo 1" className="w-full h-36 object-cover rounded-lg" />
-                  <img src="https://source.unsplash.com/random/200x300?portrait,stylish" alt="Ejemplo 2" className="w-full h-36 object-cover rounded-lg" />
-                  <img src="https://source.unsplash.com/random/200x300?portrait,modern" alt="Ejemplo 3" className="w-full h-36 object-cover rounded-lg" />
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100" id="pricing" aria-labelledby="pricing-heading">
-                <h3 id="pricing-heading" className="text-xl font-bold mb-4">Planes diseñados para todos</h3>
-
-                <div className="space-y-4">
-                  {PLANS.map(plan => (
-                    <div key={plan.id} className={`relative rounded-2xl p-6 border ${plan.highlight ? 'border-orange-300 bg-orange-50/40 shadow-lg' : 'border-gray-200 bg-white'}`}>
-                      {plan.tag && <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#ff5a1f] text-white px-3 py-1 rounded-full text-xs font-bold">{plan.tag}</div>}
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="text-lg font-bold">{plan.name}</h4>
-                          <p className="text-sm text-gray-500">{plan.photos} fotos</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-extrabold">${plan.price.toFixed(2)}</div>
-                          <div className="text-sm text-gray-400 line-through">${plan.originalPrice.toFixed(2)}</div>
-                        </div>
-                      </div>
-                      <ul className="text-sm text-gray-600 mb-4 space-y-2">
-                        {plan.features.map((f, i) => (<li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{f}</li>))}
-                      </ul>
-                      <div className="flex gap-2">
-                        <SignInButton mode="modal">
-                          <button onClick={() => { /* usuario iniciará sesión y podrá comprar en modal principal */ }} className={`w-full py-3 rounded-lg font-bold ${plan.highlight ? 'bg-[#ff5a1f] text-white' : 'bg-gray-100 text-gray-900'}`}>Seleccionar</button>
-                        </SignInButton>
-                        <button onClick={() => alert('Demo: este botón abriría detalles del plan')} className="px-4 py-3 rounded-lg border border-gray-200 text-sm">Detalles</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="text-xs text-gray-400 mt-4">Paga una vez. Sin suscripciones (también tenés planes mensuales si preferís)</p>
-              </div>
-            </div>
-
-            <div className="mt-20 grid grid-cols-2 md:grid-cols-6 gap-4 px-4">
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="aspect-[3/4] rounded-xl overflow-hidden shadow-sm bg-gray-100">
-                  <img src={`https://source.unsplash.com/random/500x750?portrait,business&sig=${i}`} alt={`Muestra ${i}`} className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Landing para usuarios no logueados */}
+          <HomeView onCreateClick={() => {}} />
         </SignedOut>
 
         <SignedIn>
+          {view === "home" && <HomeView onCreateClick={handleCreateClick} />}
 
-          {/* VISTA 1: DASHBOARD HOME */}
-          {view === "home" && (
-            <div className="max-w-5xl mx-auto px-6 pt-10">
-              <div className="text-center mb-10">
-                <div className="inline-flex items-center gap-8 border-b border-gray-200 mb-10">
-                  <button className="pb-3 border-b-2 border-[#ff5a1f] text-[#ff5a1f] font-bold px-2">Headshots</button>
-                  <button className="pb-3 border-b-2 border-transparent text-gray-400 font-medium px-2">Teams</button>
-                </div>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">Bienvenido al estudio, {user?.firstName}</h2>
-                <p className="text-gray-500 text-lg max-w-2xl mx-auto">Genera retratos profesionales en minutos.</p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-32">
-                {[10,11,12,13].map(i => (
-                  <div key={i} className="aspect-square rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition bg-gray-100">
-                    <img src={`https://source.unsplash.com/random/500x500?portrait,professional&sig=${i}`} alt={`Ejemplo ${i}`} className="w-full h-full object-cover opacity-80" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="fixed bottom-10 left-0 right-0 flex justify-center z-40">
-                <button onClick={handleCreateClick} className="bg-[#ff5a1f] hover:bg-[#e04f1b] text-white text-lg font-bold px-10 py-4 rounded-full transition transform hover:scale-105 shadow-xl shadow-orange-200/50">
-                  {weightsUrl ? "✨ Ir al Estudio (Generar)" : "Crear Headshots +"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* VISTA 2: SUBIDA (UPLOAD) */}
           {view === "upload" && (
-            <div className="max-w-2xl mx-auto px-6 pt-10 text-center">
-              <button onClick={() => setView("home")} className="mb-6 text-gray-500 hover:text-black">← Cancelar</button>
-              <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-xl">
-                <h2 className="text-3xl font-bold mb-2">Sube tus fotos</h2>
-                <p className="text-gray-500 mb-8">Selecciona 6-10 selfies claras.</p>
-                <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 bg-gray-50 hover:bg-white hover:border-[#ff5a1f] transition cursor-pointer relative group">
-                  <input type="file" multiple accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isUploading || !!zipUrl} aria-label="Subir fotos" />
-                  <div className="text-gray-400 group-hover:text-[#ff5a1f] transition font-medium">
-                    {isUploading ? "Subiendo..." : zipUrl ? "✅ Fotos Listas" : "Arrastra o haz clic aquí"}
-                  </div>
-                </div>
-                {zipUrl && !trainingId && (<button onClick={startTraining} className="w-full mt-6 bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition">Iniciar Entrenamiento</button>)}
-                {trainingId && (<div className="mt-6 bg-orange-50 p-6 rounded-xl border border-orange-100"><p className="font-bold text-orange-800">Entrenando IA...</p><p className="text-sm text-gray-600">Estado: {status}</p><button onClick={checkStatus} className="text-xs underline mt-2">Verificar</button></div>)}
-              </div>
-            </div>
+            <UploadView
+              onBack={() => setView("home")}
+              uploadedImages={uploadedImages}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+              onFileChange={handleFileUpload}
+              onStartTraining={startTraining}
+              trainingId={trainingId}
+              status={status}
+              onCheckStatus={checkStatus}
+            />
           )}
 
-          {/* VISTA 3: ESTUDIO (GENERADOR) */}
           {view === "studio" && (
-            <div className="max-w-4xl mx-auto px-6 pt-10">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-3xl font-bold">Estudio de IA</h2>
-                <button onClick={() => setView("home")} className="text-sm text-gray-500">Volver</button>
-              </div>
-
-              {!weightsUrl ? (
-                <div className="text-center py-20 bg-gray-50 rounded-3xl">
-                  <h3 className="text-xl font-bold mb-4">No tienes un modelo activo</h3>
-                  <button onClick={() => setView("upload")} className="bg-black text-white px-6 py-3 rounded-xl font-bold">Entrenar Modelo</button>
-                </div>
-              ) : (
-                <div className="bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-gray-100 p-8 md:p-12 text-center">
-                  <h3 className="text-gray-500 font-medium mb-8">Genera nuevas fotos profesionales.</h3>
-
-                  {/* Selector de Estilo */}
-                  <div className="flex justify-center flex-wrap gap-3 mb-8 max-w-xl mx-auto">
-                    {STYLE_CATEGORIES.map(cat => (
-                      <button
-                        key={cat.key}
-                        onClick={() => setSelectedStyle(cat.key)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition ${selectedStyle === cat.key ? 'bg-[#ff5a1f] text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        aria-pressed={selectedStyle === cat.key}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-4 max-w-md mx-auto mb-8">
-                    <button onClick={() => setGender("woman")} className={`flex-1 py-3 px-6 rounded-lg font-bold transition shadow-sm ${gender === 'woman' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>👩 Mujer</button>
-                    <button onClick={() => setGender("man")} className={`flex-1 py-3 px-6 rounded-lg font-bold transition shadow-sm ${gender === 'man' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>👨 Hombre</button>
-                  </div>
-                  <button onClick={generatePhotos} disabled={isGeneratingBatch} className="w-full max-w-md bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-orange-200 transition disabled:opacity-70">
-                    {isGeneratingBatch ? "Generando..." : credits > 0 ? "✨ Generar Foto (1 crédito)" : "🔒 Comprar Créditos"}
-                  </button>
-
-                  {/* Resultados de la sesión actual */}
-                  {generatedImages.length > 0 && (
-                    <div className="mt-10 pt-10 border-t border-gray-100">
-                      <h4 className="text-left font-bold mb-4">Resultados recientes:</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {generatedImages.map((img, i) => (<div key={i} className="rounded-xl overflow-hidden border border-gray-200"><img src={img} alt={`Generada ${i}`} className="w-full" /></div>))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <StudioView
+              weightsUrl={weightsUrl}
+              credits={credits}
+              gender={gender}
+              setGender={setGender}
+              ageRange={ageRange}
+              setAgeRange={setAgeRange}
+              hairColor={hairColor}
+              setHairColor={setHairColor}
+              hairLength={hairLength}
+              setHairLength={setHairLength}
+              hairStyle={hairStyle}
+              setHairStyle={setHairStyle}
+              ethnicity={ethnicity}
+              setEthnicity={setEthnicity}
+              bodyType={bodyType}
+              setBodyType={setBodyType}
+              attires={attires}
+              setAttires={setAttires}
+              backgrounds={backgrounds}
+              setBackgrounds={setBackgrounds}
+              selectedStyle={selectedStyle}
+              setSelectedStyle={setSelectedStyle}
+              generatedImages={generatedImages}
+              isGeneratingBatch={isGeneratingBatch}
+              onGenerate={generatePhotos}
+              onBack={() => setView("home")}
+              showFullSetup={!hasCompletedPreferences && !weightsUrl}
+              planId={currentPlan}
+              onFinishSetup={handleFinishSetup}
+              notify={pushToast}
+            />
           )}
 
-          {/* VISTA 4: GALERÍA (EL PANEL) */}
           {view === "gallery" && (
-            <div className="max-w-6xl mx-auto px-6 pt-10">
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-bold">Mis Retratos</h2>
-                <span className="text-gray-500">{galleryImages.length} fotos</span>
-              </div>
-
-              {galleryImages.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100">
-                  <p className="text-gray-500 text-lg mb-4">Aún no has generado ninguna foto.</p>
-                  <button onClick={() => setView("home")} className="text-[#ff5a1f] font-bold">Ir a crear →</button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                  {galleryImages.map((item) => (
-                    <div key={item.id} className="relative group rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition">
-                      <img src={item.image_url} alt={item.alt || "Retrato generado"} className="w-full h-auto object-cover aspect-[2/3]" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition"></div>
-                      <a href={item.image_url} download target="_blank" rel="noreferrer" className="absolute bottom-3 right-3 bg-white text-black p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition hover:bg-gray-100 scale-90 hover:scale-100" aria-label="Descargar imagen">
-                        ⬇️
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <GalleryView
+              images={galleryImages}
+              onBackToHome={() => setView("home")}
+            />
           )}
-
         </SignedIn>
       </main>
 
-      {/* --- MODAL DE PAGOS --- */}
-      {showPayModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="max-w-5xl w-full bg-white rounded-3xl p-8 md:p-12 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <button onClick={() => setShowPayModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-black text-xl font-bold">✕</button>
-            <div className="text-center mb-10"><h2 className="text-3xl font-bold mb-2">Elige tu paquete</h2><p className="text-gray-500">Paga una vez. Sin suscripciones.</p></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {PLANS.map((plan) => (
-                <div key={plan.id} className={`relative rounded-2xl p-8 border flex flex-col ${plan.highlight ? 'border-orange-500 shadow-xl ring-1 ring-orange-500 bg-orange-50/10' : 'border-gray-200 bg-white'}`}>
-                  {plan.tag && (<div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-[#ff5a1f] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{plan.tag}</div>)}
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <div className="flex items-end gap-2 mb-6"><span className="text-4xl md:text-5xl font-extrabold text-gray-900">${plan.price.toFixed(2)}</span><span className="text-gray-400 line-through mb-1.5 text-lg">${plan.originalPrice.toFixed(2)}</span></div>
-                  <ul className="space-y-4 mb-8 flex-1">
-                    {plan.features.map((f, i) => (<li key={i} className="flex items-center gap-3 text-sm text-gray-600"><span className="text-green-500">✓</span> {f}</li>))}
-                  </ul>
-                  <button onClick={() => buyPlan(plan)} className={`w-full py-4 rounded-xl font-bold transition ${plan.highlight ? 'bg-[#ff5a1f] text-white hover:bg-[#e04f1b]' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}>Seleccionar</button>
+      <PayModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        onSelectPlan={buyPlan}
+      />
+
+      {/* TOAST STACK GLOBAL */}
+      {toasts.length > 0 && (
+        <div className="fixed top-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((t) => {
+            const styles = getToastStyles(t.type);
+            return (
+              <div
+                key={t.id}
+                className={`flex items-start gap-3 px-4 py-3 rounded-2xl border shadow-lg ${styles.container}`}
+              >
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm ${styles.iconBg} ${styles.text}`}
+                >
+                  {styles.icon}
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="flex-1">
+                  <p className={`text-xs font-medium ${styles.text}`}>
+                    {t.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => closeToast(t.id)}
+                  className="text-xs text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

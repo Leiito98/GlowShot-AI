@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import Replicate from "replicate"; // Necesario para la sintaxis, aunque no se use
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -11,41 +10,81 @@ const supabaseAdmin = createClient(
 export async function POST(request) {
   try {
     const { userId } = await auth();
-    const { packSize } = await request.json(); 
-
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    console.log(`💰 [DEBUG] Usuario: ${userId} intentando comprar ${packSize}.`);
-
-    // 1. Leer saldo actual
-    const { data: currentCreditData } = await supabaseAdmin
-      .from('user_credits')
-      .select('credits')
-      .eq('user_id', userId)
-      .single();
-    
-    // Si la fila no existe (primer compra), empezamos en 0
-    const currentCredits = currentCreditData ? currentCreditData.credits : 0;
-    const newAmount = packSize + currentCredits;
-
-    // 2. Actualizar o Insertar (Upsert) - La operación de guardado
-    const { data: updatedRow, error: upsertError } = await supabaseAdmin
-      .from('user_credits')
-      .upsert({ user_id: userId, credits: newAmount })
-      .select(); // Pedimos que devuelva la fila para confirmar
-
-    if (upsertError) {
-        console.error("❌ ERROR CRÍTICO DE PERSISTENCIA (UPSERT):", upsertError);
-        // Devolvemos 500 para que el frontend no crea que tuvo éxito
-        return NextResponse.json({ error: "Fallo interno al guardar saldo." }, { status: 500 });
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
+    const { packSize, planId } = await request.json(); // 👈 ahora también recibimos planId
+
+    if (!packSize || typeof packSize !== "number") {
+      return NextResponse.json(
+        { error: "packSize inválido" },
+        { status: 400 }
+      );
+    }
+
+    console.log(
+      `💰 [DEBUG] Usuario: ${userId} intentando comprar ${packSize} créditos. Plan: ${planId}`
+    );
+
+    // 1) Leer créditos actuales
+    const { data: currentCreditData, error: currentError } =
+      await supabaseAdmin
+        .from("user_credits")
+        .select("credits")
+        .eq("user_id", userId)
+        .single();
+
+    if (currentError && currentError.code !== "PGRST116") {
+      // PGRST116 = no rows found (primer compra), eso NO es error grave
+      console.error("Error leyendo créditos actuales:", currentError);
+    }
+
+    const currentCredits = currentCreditData?.credits ?? 0;
+    const newAmount = currentCredits + packSize;
+
+    // 2) Upsert de créditos
+    const { error: upsertCreditsError } = await supabaseAdmin
+      .from("user_credits")
+      .upsert({ user_id: userId, credits: newAmount });
+
+    if (upsertCreditsError) {
+      console.error(
+        "❌ ERROR CRÍTICO DE PERSISTENCIA (UPSERT CRÉDITOS):",
+        upsertCreditsError
+      );
+      return NextResponse.json(
+        { error: "Fallo interno al guardar saldo." },
+        { status: 500 }
+      );
+    }
+
+    // 3) Guardar / actualizar plan del usuario (si vino planId)
+    if (planId) {
+      const { error: upsertPlanError } = await supabaseAdmin
+        .from("user_plans")
+        .upsert({
+          user_id: userId,
+          plan_id: planId, // "basic" | "standard" | "executive"
+        });
+
+      if (upsertPlanError) {
+        console.error(
+          "⚠️ Error guardando user_plans (no bloquea créditos):",
+          upsertPlanError
+        );
+        // NO cortamos la respuesta porque los créditos sí se guardaron
+      }
+    }
+
     console.log("✅ Saldo guardado. Nuevo total:", newAmount);
 
     return NextResponse.json({ success: true, newCredits: newAmount });
-
   } catch (error) {
     console.error("❌ ERROR GENERAL EN BUY CREDITS:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Error interno" },
+      { status: 500 }
+    );
   }
 }

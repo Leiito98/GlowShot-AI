@@ -1,123 +1,152 @@
-// ARCHIVO: lib/prompts.ts
+// ============================================================================
+// lib/prompts.ts — versión optimizada para trabajar con `selections`
+// ============================================================================
+//
+// Estos prompts NO definen:
+//   - género
+//   - edad
+//   - etnia
+//   - outfit
+//   - fondo
+//
+// Eso lo aporta el backend usando `selections`.
+//
+// Aquí sólo definimos:
+//   - estilo visual
+//   - intención emocional
+//   - atmósfera
+//   - narrativa estética
+//
+// Todos usan {trigger} para activar el LoRA correctamente.
+// ============================================================================
 
-// --- COLECCIÓN DE PROMPTS CATEGORIZADOS ---
-// Usaremos esta estructura: PROMPT_COLLECTION[genero][categoria]
 export const PROMPT_COLLECTION = {
   woman: {
-      // --- LINKEDIN / CV / PROFESIONAL (Focus: Confianza, Limpieza) ---
-      Professional: [
-          "OHWX woman, wearing a tailored navy blazer, white blouse, modern office setting, professional headshot, confident posture, soft studio lighting, 8k, photorealistic",
-          "OHWX woman, black turtleneck, leaning against a neutral grey wall, deep shadows, serious expression, creative director style, sharp focus",
-          "OHWX woman, smart casual knit sweater, smiling candidly, working on a clean laptop, bright modern coworking space, natural daylight, high detail",
-          "OHWX woman, speaking at a conference podium, blurred audience in background, wearing an elegant silk top, leadership portrait, strong eye contact",
-          "OHWX woman, crisp white shirt, minimalist background, arms crossed, clean professional headshot, detailed skin texture",
-          "OHWX woman, doctor's coat, hospital corridor, warm, trustworthy smile, bright lighting, medical professional",
-          "OHWX woman, law firm setting, grey suit, holding a legal pad, authoritative, professional photography",
-          "OHWX woman, financial advisor style, pinstripe blazer, wall street background (out of focus), intense focus",
-          "OHWX woman, engineer style, wearing safety glasses, holding a tablet, industrial background (blurred), technical confidence",
-      ],
-      // --- CITAS / TINDER (Focus: Atractivo, Autenticidad, Luz Dorada) ---
-      Dating: [
-          "OHWX woman, candid portrait, laughing naturally, golden hour sunlight, outdoor cafe setting, holding a wine glass, soft bokeh background, hyper-realistic, dating profile shot",
-          "OHWX woman, cozy Sunday morning, oversized knit sweater, holding coffee mug, soft window light, relaxed and authentic vibe, high quality candid shot",
-          "OHWX woman, evening makeup, rooftop bar at sunset, city lights bokeh, black slip dress, sophisticated dating profile photo",
-          "OHWX woman, playing with a golden retriever dog in a park, smiling, casual denim jeans and tee, wholesome and approachable",
-          "OHWX woman, ice skating rink, winter scarf and coat, candid laughter, romantic winter date scene",
-          "OHWX woman, sitting on a pier, sunset over the lake, contemplative gaze, wearing a knit beanie, artistic profile",
-          "OHWX woman, cooking in a modern kitchen, flour on nose, genuine laugh, warm home lighting, attractive homebody vibe",
-          "OHWX woman, reading a book in bed, messy bun, soft natural light, cozy lifestyle shot, dating profile picture",
-          "OHWX woman, holding a cocktail in a dimly lit, stylish restaurant, elegant evening wear, direct eye contact",
-      ],
-      // --- VIAJES / LIFESTYLE (Focus: Experiencias, Aventura, Escenario) ---
-      Lifestyle: [
-          "OHWX woman, in Santorini Greece, white buildings and blue sea background, wearing a sun hat and linen dress, bright sunlight, travel blogger aesthetic",
-          "OHWX woman, walking through a crowded market in Marrakesh, vibrant colors, boho style dress, cinematic travel photography",
-          "OHWX woman, on a yacht deck, holding a glass of champagne, turquoise ocean background, luxury travel lifestyle, sunny day",
-          "OHWX woman, wearing a trench coat in Paris, blurred Eiffel Tower background, candid shot while walking, stylish european vibe",
-          "OHWX woman, hiking in the Swiss Alps, looking back at the camera, wearing professional hiking gear, rugged mountain background",
-          "OHWX woman, standing in a lavender field at sunset, flowing summer dress, soft pastel colors, dreamy travel photo",
-          "OHWX woman, near a tropical waterfall, wearing a simple bikini, jungle background, natural beauty, adventurous spirit",
-          "OHWX woman, drinking coffee in front of a landmark (e.g., Colosseum), wearing sunglasses, candid street shot",
-      ],
-      // --- SOCIAL / INSTAGRAM (Focus: Estética, Moda, Tendencia) ---
-      Social: [
-          "OHWX woman, streetwear fashion, standing in front of a graffiti wall, urban neon lighting, intense look, social media aesthetic",
-          "OHWX woman, close up beauty shot, studio lighting, detailed eye makeup, perfect skin texture, high fashion portrait",
-          "OHWX woman, mirror selfie style (but high quality), clean minimalist bathroom, showcasing outfit, fashion influence",
-          "OHWX woman, holding a vinyl record, music store background, cozy sweater, hipster aesthetic, soft focus",
-          "OHWX woman, at a music festival, neon lights reflecting on face, energetic dance pose, festival outfit, social media post",
-          "OHWX woman, black and white portrait, dramatic shadow play across the face, artistic moody studio shot",
-          "OHWX woman, sitting on the steps of a brownstone building, city life background, candid street photography, soft focus",
-          "OHWX woman, holding a camera, taking a picture of the view, artsy aesthetic, candid moment",
-          "OHWX woman, aesthetic flatlay, holding a flower, wearing rings, perfect manicure, soft white background",
-      ]
+    // ----------------------------------------------------------------------
+    // 💼 LINKEDIN / PROFESIONAL
+    // ----------------------------------------------------------------------
+    Professional: [
+      "{trigger}, professional portrait photography, confident expression, subtle cinematic tone, crisp detail, realistic skin texture, ultra sharp, editorial headshot aesthetic",
+      "{trigger}, leadership portrait, clean composition, calm presence, refined corporate vibe, natural light feel, premium professional photography look",
+      "{trigger}, authentic executive portrait, composed posture, subtle depth of field, modern studio aesthetic, elegant and intelligent visual tone",
+      "{trigger}, polished headshot, balanced soft lighting, focused expression, premium corporate portrait style, lifelike cinematic rendering",
+      "{trigger}, high-end editorial headshot, confident yet approachable mood, fine-art portrait realism, professional photographic atmosphere",
+      "{trigger}, modern corporate portrait, refined minimalist tone, quiet confidence, premium portrait session aesthetic",
+      "{trigger}, executive headshot session, composed and professional visual language, natural expression, elegant fine-detail realism"
+    ],
+
+    // ----------------------------------------------------------------------
+    // ❤️ CITAS / TINDER
+    // ----------------------------------------------------------------------
+    Dating: [
+      "{trigger}, warm and inviting portrait, natural charm, intimate candid feeling, soft emotional glow, authentic storytelling vibe",
+      "{trigger}, relaxed lifestyle portrait, subtle romantic tone, gentle light atmosphere, approachable expression, natural warmth",
+      "{trigger}, cinematic romantic portrait, dreamy mood, soft emotional ambience, expressive presence, modern dating profile aesthetic",
+      "{trigger}, spontaneous candid portrait, gentle smile energy, natural feel, visually appealing emotional tone",
+      "{trigger}, serene and attractive portrait, calm presence, cinematic warmth, subtle depth and character",
+      "{trigger}, modern romantic portrait, emotionally engaging expression, soft glow, authentic personality vibe",
+      "{trigger}, natural dating profile style portrait, honest emotional tone, intimate yet elegant aesthetic"
+    ],
+
+    // ----------------------------------------------------------------------
+    // ✈️ LIFESTYLE / VIAJES
+    // ----------------------------------------------------------------------
+    Lifestyle: [
+      "{trigger}, cinematic lifestyle photography, sense of place and story, travel mood, immersive atmosphere, expressive portrait narrative",
+      "{trigger}, aspirational lifestyle portrait, visually rich composition, natural adventure aesthetic, subtle cinematic storytelling",
+      "{trigger}, elegant lifestyle scene, relaxed expression, refined visual tone, artistic travel-inspired mood",
+      "{trigger}, experiential lifestyle portrait, emotional sense of space, visual storytelling focus, cinematic documentary feel",
+      "{trigger}, artistic lifestyle photography, moment-in-motion feeling, grounded natural tone",
+      "{trigger}, calm reflective lifestyle portrait, contemplative atmosphere, emotionally grounded visual style",
+      "{trigger}, premium lifestyle portrait session, immersive environment tone, expressive narrative realism"
+    ],
+
+    // ----------------------------------------------------------------------
+    // 🤳 SOCIAL / INSTAGRAM
+    // ----------------------------------------------------------------------
+    Social: [
+      "{trigger}, modern social-style portrait, aesthetic visual tone, expressive personality focus, stylish cinematic presence",
+      "{trigger}, artistic portrait vibe, contemporary creative energy, soft editorial mood, visually engaging composition",
+      "{trigger}, aesthetic portrait session, subtle expressive tone, polished modern social media look",
+      "{trigger}, expressive creative portrait, stylized atmosphere, cinematic texture, bold visual identity",
+      "{trigger}, visually striking portrait, artistic balance of mood and expression, refined creative tone",
+      "{trigger}, editorial-inspired creative portrait, intimate modern vibe, personality-driven composition",
+      "{trigger}, premium creator-style portrait, polished yet artistic, emotional visual character"
+    ]
   },
+
   man: {
-      // --- LINKEDIN / CV / PROFESIONAL ---
-      Professional: [
-          "OHWX man, wearing a tailored charcoal suit, white shirt, modern glass office background, confident expression, professional headshot, sharp focus, 8k",
-          "OHWX man, wearing a black knit turtleneck, leaning against a clean white wall, studio lighting, serious and intellectual look, creative professional",
-          "OHWX man, crisp blue button-down shirt, rolled sleeves, arms crossed, bright open-plan office setting, friendly tech vibe",
-          "OHWX man, speaking at a corporate event, blurred conference room background, professional suit, authoritative leadership pose",
-          "OHWX man, smart casual grey sweater and glasses, holding a tablet, modern coffee shop working environment, trustworthy consultant",
-          "OHWX man, doctor's coat, hospital environment, warm smile, professional and clean lighting",
-          "OHWX man, lawyer style, dark suit, law library background, intelligent and trustworthy, serious eye contact",
-          "OHWX man, real estate agent, standing in front of a luxury modern home, wearing a blazer, welcoming and successful appearance",
-          "OHWX man, software developer, multiple monitors background, code reflection on face (subtle), intense focus, casual tech wear",
-      ],
-      // --- CITAS / TINDER ---
-      Dating: [
-          "OHWX man, golden hour portrait in a park, smiling confidently, wearing a fitted white linen shirt, blurred green background, high quality dating profile shot",
-          "OHWX man, sitting at a sidewalk cafe, holding a coffee cup, soft daylight, wearing a stylish beige sweater, approachable dating profile picture",
-          "OHWX man, at a rooftop bar at night, city lights bokeh background, holding a cocktail, leather jacket, cool and social vibe",
-          "OHWX man, playing acoustic guitar on a rustic wooden porch, relaxed and artistic vibe, simple t-shirt and jeans",
-          "OHWX man, cooking in a modern kitchen, genuine smile, wearing a simple t-shirt, warm home lighting, attractive domestic shot",
-          "OHWX man, standing by the ocean at sunset, wind in hair, wearing a casual jacket, deep and thoughtful gaze",
-          "OHWX man, holding a glass of red wine, fireplace background, winter cabin setting, cozy romantic profile",
-          "OHWX man, bowling alley or arcade background, laughing candidly, wearing a simple t-shirt, fun and active dating profile",
-          "OHWX man, mirror selfie (high quality), modern minimalist gym, wearing workout gear, fit and healthy look",
-      ],
-      // --- VIAJES / LIFESTYLE ---
-      Lifestyle: [
-          "OHWX man, standing in front of the Eiffel Tower, wearing a simple jacket, cloudy Parisian day, candid street photo, travel aesthetic",
-          "OHWX man, hiking in the mountains, wearing a technical jacket, looking at a vast mountain range, adventurous travel photography",
-          "OHWX man, exploring a Japanese street at night, neon signs reflection, stylish streetwear, urban explorer vibe",
-          "OHWX man, on a yacht, wearing white linen shorts and an open shirt, blue ocean background, luxury travel lifestyle",
-          "OHWX man, drinking espresso in a sunny Italian piazza, wearing sunglasses and light blazer, relaxed european summer",
-          "OHWX man, walking on the Great Wall of China, wind in hair, looking towards the landscape, epic travel shot",
-          "OHWX man, riding a bicycle through a sunny vineyard, casual button-down shirt, rural european travel",
-          "OHWX man, standing by a vintage car on a coastal road, sunglasses on, jacket over shoulder, timeless travel style",
-          "OHWX man, in a snowy landscape, wearing a heavy winter parka, looking up at the northern lights, scenic view",
-      ],
-      // --- SOCIAL / INSTAGRAM ---
-      Social: [
-          "OHWX man, close up detailed portrait, neutral grey background, dramatic shadow on half face, cinematic studio lighting",
-          "OHWX man, stylish streetwear, sitting on concrete steps, urban background (blurred), fashion photography style",
-          "OHWX man, at a music festival, sunset lighting, smiling broadly, vibrant festival atmosphere, social media post",
-          "OHWX man, mirror selfie (high quality), modern gym locker room, showing off workout gear, fitness influencer",
-          "OHWX man, holding a vinyl record, focused on the album art, music store setting, soft lighting, creative aesthetic",
-          "OHWX man, neon light portrait, blue and pink hues on face, leather jacket, edgy futuristic style",
-          "OHWX man, black and white portrait, deep shadows, serious expression, artistic composition",
-          "OHWX man, sitting at a bar, holding an expensive cocktail, laughing candidly, socialite vibe",
-          "OHWX man, walking dog in a city park, motion blur in the background, candid street style",
-      ]
+    // ----------------------------------------------------------------------
+    // 💼 LINKEDIN / PROFESIONAL
+    // ----------------------------------------------------------------------
+    Professional: [
+      "{trigger}, professional portrait photography, confident and composed presence, cinematic clarity, ultra sharp editorial headshot aesthetic",
+      "{trigger}, executive portrait tone, focused expression, refined corporate visual language, premium headshot realism",
+      "{trigger}, authentic leadership portrait, controlled calm posture, modern professional studio tone",
+      "{trigger}, polished corporate headshot, lifelike fine-detail realism, balanced natural light aesthetic",
+      "{trigger}, high-end business portrait session, confident yet approachable, cinematic fine-art tone",
+      "{trigger}, sophisticated executive portrait, refined visual atmosphere, professional photography depth",
+      "{trigger}, premium editorial corporate portrait, timeless professional mood, elegant realism"
+    ],
+
+    // ----------------------------------------------------------------------
+    // ❤️ CITAS / TINDER
+    // ----------------------------------------------------------------------
+    Dating: [
+      "{trigger}, warm cinematic portrait, natural charisma, relaxed emotional tone, soft expressive presence",
+      "{trigger}, candid lifestyle portrait, approachable confidence, authentic and modern dating profile style",
+      "{trigger}, cinematic romantic mood portrait, subtle emotional depth, visually engaging warmth",
+      "{trigger}, casual yet confident portrait, natural presence, expressive connection-focused tone",
+      "{trigger}, intimate relaxed portrait vibe, soft mood and emotional authenticity",
+      "{trigger}, modern dating portrait aesthetic, honest expression, inviting emotional tone",
+      "{trigger}, refined candid portrait, natural energy, cinematic lifestyle warmth"
+    ],
+
+    // ----------------------------------------------------------------------
+    // ✈️ LIFESTYLE / VIAJES
+    // ----------------------------------------------------------------------
+    Lifestyle: [
+      "{trigger}, cinematic lifestyle photography, sense of exploration and story, immersive visual narrative",
+      "{trigger}, aspirational lifestyle portrait, grounded natural tone, expressive portrait-in-environment look",
+      "{trigger}, artistic lifestyle scene, balanced emotional presence, cinematic documentary atmosphere",
+      "{trigger}, reflective lifestyle portrait, emotional sense of place, subtle cinematic realism",
+      "{trigger}, travel-inspired lifestyle portrait, narrative visual tone, refined storytelling aesthetic",
+      "{trigger}, calm experiential portrait, grounded mood, expressive lifestyle presence",
+      "{trigger}, premium lifestyle portrait session, immersive environment-driven mood"
+    ],
+
+    // ----------------------------------------------------------------------
+    // 🤳 SOCIAL / INSTAGRAM
+    // ----------------------------------------------------------------------
+    Social: [
+      "{trigger}, bold creative portrait aesthetic, expressive personality-driven visual style",
+      "{trigger}, cinematic artistic portrait, strong presence, refined contemporary mood",
+      "{trigger}, modern creator-style portrait, aesthetic editorial tone, minimal yet impactful vibe",
+      "{trigger}, expressive creative portrait composition, visually stylized cinematic texture",
+      "{trigger}, striking artistic portrait, emotional personality emphasis, polished creative realism",
+      "{trigger}, editorial-inspired modern portrait, subtle dramatic tone, creative visual identity",
+      "{trigger}, premium creator portrait session, cinematic creative energy, refined artistic presence"
+    ]
   }
 };
 
-// --- FUNCIÓN QUE USA EL ESTILO (LA QUE NECESITAS EN page.tsx) ---
-export function getPromptsForPack(gender: "man" | "woman", count: number, style: string) {
-  // 1. Obtiene el array de prompts basado en género y estilo
-  const source = PROMPT_COLLECTION[gender][style as keyof typeof PROMPT_COLLECTION["woman"]];
+// ============================================================================
+// Selección de prompts para generación
+// ============================================================================
 
-  // 2. Si hay menos prompts que los que se piden, los repite (para llegar a 40 o 100)
+export function getPromptsForPack(
+  gender: "man" | "woman",
+  count: number,
+  style: string
+) {
+  const source =
+    PROMPT_COLLECTION[gender][style as keyof typeof PROMPT_COLLECTION["woman"]];
+
   let finalSource = source;
   while (finalSource.length < count) {
-      finalSource = finalSource.concat(source);
+    finalSource = finalSource.concat(source);
   }
-  
-  // 3. Mezcla y saca la cantidad pedida
+
   const shuffled = [...finalSource].sort(() => 0.5 - Math.random());
-  
-  // Aseguramos que la cantidad de prompts sea igual a 'count'
   return shuffled.slice(0, count);
 }

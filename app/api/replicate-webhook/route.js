@@ -1,3 +1,4 @@
+// app/api/replicate-webhook/route.js
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,14 +7,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Necesario para que Next.js App Router acepte webhooks externos
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(request) {
   try {
     const body = await request.json();
     console.log("📩 Webhook Replicate:", JSON.stringify(body, null, 2));
 
-    const { id: trainingId, status, output, error } = body;
+    const { id: trainingId, status, error, output } = body;
 
-    // Buscar el registro en predictions
+    // 1️⃣ Buscar la predicción vinculada
     const { data: prediction, error: predError } = await supabaseAdmin
       .from("predictions")
       .select("*")
@@ -21,89 +26,21 @@ export async function POST(request) {
       .single();
 
     if (predError || !prediction) {
-      console.error("❌ No se encontró prediction para training_id:", trainingId);
+      console.error("❌ Prediction no encontrada para training_id:", trainingId);
       return NextResponse.json({ ok: true });
     }
 
-    if (status === "succeeded" || status === "completed") {
-      // Dependiendo de cómo devuelva tu trainer:
-      // Idealmente el trainer devuelve directamente una URL al .safetensors
-      // en "output" o en "output.lora_file".
-      let loraFileUrl = null;
-
-      if (typeof output === "string") {
-        loraFileUrl = output;
-      } else if (output?.lora_file) {
-        loraFileUrl = output.lora_file;
-      } else if (Array.isArray(output) && output.length > 0) {
-        // Por si devuelve un array de archivos
-        loraFileUrl = output[0];
-      }
-
-      if (!loraFileUrl) {
-        console.error("❌ No se encontró URL de LoRA en el output");
-        await supabaseAdmin
-          .from("predictions")
-          .update({
-            status: "failed",
-            error: "No LoRA URL in trainer output",
-            finished_at: new Date().toISOString(),
-          })
-          .eq("training_id", trainingId);
-
-        return NextResponse.json({ ok: true });
-      }
-
-      // Descargar el .safetensors
-      console.log("⬇️ Descargando LoRA desde:", loraFileUrl);
-      const res = await fetch(loraFileUrl);
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const fileName = `${prediction.user_id}/${trainingId}.safetensors`;
-
-      // Subir al bucket lora_weights
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from("lora_weights")
-        .upload(fileName, buffer, {
-          contentType: "application/octet-stream",
-        });
-
-      if (uploadError) {
-        console.error("❌ Error subiendo LoRA a Supabase:", uploadError);
-        await supabaseAdmin
-          .from("predictions")
-          .update({
-            status: "failed",
-            error: uploadError.message,
-            finished_at: new Date().toISOString(),
-          })
-          .eq("training_id", trainingId);
-
-        return NextResponse.json({ ok: true });
-      }
-
-      const { data: publicData } = supabaseAdmin.storage
-        .from("lora_weights")
-        .getPublicUrl(fileName);
-
-      const loraPublicUrl = publicData.publicUrl;
-
-      console.log("✅ LoRA guardada en:", loraPublicUrl);
-
-      // Actualizar prediction con la URL del LoRA
+    // 2️⃣ Actualizar progreso (mientras NO haya terminado)
+    if (!["succeeded", "completed", "failed", "canceled"].includes(status)) {
       await supabaseAdmin
         .from("predictions")
-        .update({
-          status: "completed",
-          lora_url: loraPublicUrl,
-          finished_at: new Date().toISOString(),
-        })
+        .update({ status })
         .eq("training_id", trainingId);
 
       return NextResponse.json({ ok: true });
     }
 
+    // 3️⃣ Si falló
     if (status === "failed" || status === "canceled") {
       await supabaseAdmin
         .from("predictions")
@@ -117,17 +54,47 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Estados intermedios (starting, processing...)
+    // ================================
+    // 4️⃣ TRAINING EXITOSO (succeeded)
+    // ================================
+
+    // Debe existir output.weights con el .tar final
+    const tarUrl =
+      output?.weights?.[0] ||
+      (Array.isArray(output?.weights) ? output.weights[0] : null);
+
+    if (!tarUrl) {
+      console.error("❌ No se encontró el archivo .tar en output.weights");
+      await supabaseAdmin
+        .from("predictions")
+        .update({
+          status: "failed",
+          error: "No se encontró output.weights",
+          finished_at: new Date().toISOString(),
+        })
+        .eq("training_id", trainingId);
+
+      return NextResponse.json({ ok: true });
+    }
+
+    console.log("📦 LoRA .tar detectado:", tarUrl);
+
+    // 5️⃣ Guardar en Supabase
     await supabaseAdmin
       .from("predictions")
       .update({
-        status,
+        status: "completed",
+        lora_url: tarUrl, // 👈 ahora sí guardamos el .tar real
+        finished_at: new Date().toISOString(),
       })
       .eq("training_id", trainingId);
 
+    console.log("🎉 LoRA guardado correctamente:", tarUrl);
+
     return NextResponse.json({ ok: true });
+
   } catch (err) {
-    console.error("❌ ERROR WEBHOOK:", err);
-    return NextResponse.json({ ok: false });
+    console.error("🔥 ERROR WEBHOOK:", err);
+    return NextResponse.json({ ok: false, error: err.message });
   }
 }
