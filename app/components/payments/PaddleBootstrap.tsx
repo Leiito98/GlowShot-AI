@@ -1,4 +1,5 @@
-Paddle.Environment.set("sandbox");
+"use client";
+
 import Script from "next/script";
 
 declare global {
@@ -10,7 +11,7 @@ declare global {
 export default function PaddleBootstrap() {
   const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
 
-  // Si por algún motivo no está el token, no intentamos inicializar nada
+  // Si falta el token, no intentamos inicializar nada
   if (!clientToken) {
     console.error("Falta NEXT_PUBLIC_PADDLE_CLIENT_TOKEN");
     return null;
@@ -26,7 +27,7 @@ export default function PaddleBootstrap() {
           return;
         }
 
-        // 👇 MUY IMPORTANTE: forzar sandbox en el frontend
+        // 👇 AQUÍ, ya con Paddle cargado, seteamos sandbox
         window.Paddle.Environment.set("sandbox");
 
         window.Paddle.Initialize({
@@ -38,7 +39,6 @@ export default function PaddleBootstrap() {
               locale: "es",
             },
           },
-          // Para debug: vas a ver info en la consola del navegador
           eventCallback: (data: any) => {
             console.log("[Paddle event]", data);
           },
