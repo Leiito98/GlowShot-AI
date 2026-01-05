@@ -1,33 +1,63 @@
-// app/components/payments/PaddleBootstrap.tsx
+Paddle.Environment.set("sandbox");
+``` :contentReference[oaicite:0]{index=0}  
+
+Ahora mismo en tu `PaddleBootstrap` NO lo estamos haciendo, así que es muy probable que el overlay esté intentando abrir la transacción en producción y por eso se rompe.
+
+---
+
+## 1️⃣ Actualiza `app/components/payments/PaddleBootstrap.tsx`
+
+Deja este archivo **exactamente así**:
+
+```tsx
 "use client";
 
 import Script from "next/script";
 
+declare global {
+  interface Window {
+    Paddle?: any;
+  }
+}
+
 export default function PaddleBootstrap() {
   const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
 
-  // Si no hay token (por seguridad), no hacemos nada
-  if (!clientToken) return null;
+  // Si por algún motivo no está el token, no intentamos inicializar nada
+  if (!clientToken) {
+    console.error("Falta NEXT_PUBLIC_PADDLE_CLIENT_TOKEN");
+    return null;
+  }
 
   return (
     <Script
       src="https://cdn.paddle.com/paddle/v2/paddle.js"
       strategy="afterInteractive"
       onLoad={() => {
-        // @ts-ignore en JS no hace falta, pero por si acaso
-        if (window.Paddle) {
-          // @ts-ignore
-          window.Paddle.Initialize({
-            token: clientToken,
-            checkout: {
-              settings: {
-                displayMode: "overlay",
-                theme: "light",
-                locale: "es",
-              },
-            },
-          });
+        if (!window.Paddle) {
+          console.error("Paddle.js no se cargó correctamente");
+          return;
         }
+
+        // 👇 MUY IMPORTANTE: forzar sandbox en el frontend
+        window.Paddle.Environment.set("sandbox");
+
+        window.Paddle.Initialize({
+          token: clientToken,
+          checkout: {
+            settings: {
+              displayMode: "overlay",
+              theme: "light",
+              locale: "es",
+            },
+          },
+          // Para debug: vas a ver info en la consola del navegador
+          eventCallback: (data: any) => {
+            console.log("[Paddle event]", data);
+          },
+        });
+
+        console.log("✅ Paddle.js inicializado en modo sandbox");
       }}
     />
   );
