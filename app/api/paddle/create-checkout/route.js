@@ -54,7 +54,6 @@ export async function POST(request) {
       );
     }
 
-    // Normalizamos la URL base para evitar dobles //
     const APP_URL =
       (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") ||
       "https://glow-shot-ai-flame.vercel.app";
@@ -71,13 +70,8 @@ export async function POST(request) {
         app_user_id: userId,
         plan_id: planId,
       },
-      // 👇 dónde volver después de pagar o cancelar
       success_url: `${APP_URL}/payment-success`,
       cancel_url: `${APP_URL}/payment-cancel`,
-      // 👇 opcional: si quisieras forzar un payment link sobre un dominio concreto
-      // checkout: {
-      //   url: `${APP_URL}/pay`,
-      // },
     };
 
     console.log("📦 Payload hacia Paddle:", JSON.stringify(payload, null, 2));
@@ -102,20 +96,29 @@ export async function POST(request) {
       );
     }
 
-    // 👇 En Billing la URL de checkout viene en data.checkout.url
-    const checkoutUrl = json?.data?.checkout?.url;
+    // 👇 ID de la transacción (txn_...)
+    const transactionId = json?.data?.id;
 
-    if (!checkoutUrl) {
-      console.error("Respuesta sin data.checkout.url:", json);
+    if (!transactionId) {
+      console.error("Respuesta sin data.id (transactionId):", json);
       return new Response(
-        JSON.stringify({ error: "Paddle no devolvió la URL de checkout" }),
+        JSON.stringify({
+          error: "Paddle no devolvió el ID de la transacción",
+        }),
         { status: 500 }
       );
     }
 
-    // 👉 Esta URL es la que usas en el front:
-    // window.location.href = checkoutUrl;
-    return new Response(JSON.stringify({ checkoutUrl }), { status: 200 });
+    // Podrías mantener checkoutUrl si quisieras:
+    // const checkoutUrl = json?.data?.checkout?.url || null;
+
+    return new Response(
+      JSON.stringify({
+        transactionId,
+        // checkoutUrl,  // opcional, ya no lo necesitamos para la UI
+      }),
+      { status: 200 }
+    );
   } catch (e) {
     console.error("create-checkout exception:", e);
     return new Response(

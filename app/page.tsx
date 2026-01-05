@@ -5,6 +5,7 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 
 import { supabase } from "@/app/lib/supabase";
 import { getPromptsForPack } from "@/lib/prompts";
+import { PaddleBootstrap } from "@/app/components/payments/PaddleBootstrap";
 
 import { HeaderBar } from "@/app/components/layout/HeaderBar";
 import { HomeView } from "@/app/components/views/HomeView";
@@ -335,7 +336,13 @@ export default function Home() {
 
   // --- Comprar plan ---
   // --- Comprar plan (ahora SOLO inicia el checkout de Paddle) ---
+  // --- Comprar plan ---
   const buyPlan = async (plan: Plan) => {
+    pushToast(
+      `Procesando compra de ${plan.name}...`,
+      "info"
+    );
+
     try {
       const res = await fetch("/api/paddle/create-checkout", {
         method: "POST",
@@ -347,7 +354,7 @@ export default function Home() {
 
       const data = await res.json();
 
-      if (!res.ok || !data?.checkoutUrl) {
+      if (!res.ok || !data?.transactionId) {
         console.error("Error create-checkout:", data);
         pushToast(
           data?.error || "No se pudo iniciar el pago con Paddle.",
@@ -356,13 +363,32 @@ export default function Home() {
         return;
       }
 
-      // Redirigir al checkout hosted de Paddle
-      window.location.href = data.checkoutUrl;
+      // 👇 Abrimos el overlay de Paddle en esta misma página
+      // @ts-ignore
+      if (window.Paddle) {
+        // @ts-ignore
+        window.Paddle.Checkout.open({
+          transactionId: data.transactionId,
+          // opcional: puedes sobreescribir settings acá también
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            locale: "es",
+          },
+        });
+      } else {
+        console.error("Paddle JS no está disponible en window.");
+        pushToast(
+          "No se pudo cargar el checkout de Paddle. Recarga la página e inténtalo de nuevo.",
+          "error"
+        );
+      }
     } catch (err) {
       console.error(err);
       pushToast("Error iniciando el pago con Paddle.", "error");
     }
   };
+
 
 
   // --- Generar foto ---
@@ -478,6 +504,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-b from-gray-50 via-white to-orange-50 text-gray-900 selection:bg-orange-100 selection:text-orange-900">
+      <PaddleBootstrap />
       <HeaderBar view={view} setView={setView} credits={credits} />
 
       <main className="pb-20">
