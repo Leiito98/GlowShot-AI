@@ -1,87 +1,70 @@
 import { auth } from "@clerk/nextjs/server";
 
-const PRICE_MAP: Record<string, string | undefined> = {
-  basic: process.env.PADDLE_PRICE_BASIC,
-  standard: process.env.PADDLE_PRICE_STANDARD,
-  executive: process.env.PADDLE_PRICE_EXECUTIVE,
-};
+const API_BASE =
+  process.env.NODE_ENV === "production"
+    ? "https://api.paddle.com"
+    : "https://sandbox-api.paddle.com";
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "No autenticado" }),
-        { status: 401 }
-      );
+      return new Response(JSON.stringify({ error: "No autenticado" }), {
+        status: 401,
+      });
     }
 
-    const { planId } = await request.json();
+    const { priceId, planId } = await req.json();
 
-    if (!planId || typeof planId !== "string") {
-      return new Response(
-        JSON.stringify({ error: "planId inválido" }),
-        { status: 400 }
-      );
-    }
-
-    const priceId = PRICE_MAP[planId];
-
-    if (!priceId) {
-      return new Response(
-        JSON.stringify({ error: "Price ID no configurado para ese plan" }),
-        { status: 400 }
-      );
-    }
-
-    const payload = {
-      items: [
-        {
-          price_id: priceId,
-          quantity: 1,
-        },
-      ],
-      custom_data: {
-        app_user_id: userId,
-        plan_id: planId, // "basic" | "standard" | "executive"
+    const res = await fetch(`${API_BASE}/transactions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
+        "Content-Type": "application/json",
+        "Paddle-Version": "1",
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-cancel`,
-    };
-
-    const checkoutRes = await fetch(
-      "https://sandbox-api.paddle.com/checkout",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
-          "Content-Type": "application/json",
+      body: JSON.stringify({
+        collection_mode: "automatic",
+        items: [
+          {
+            price_id: priceId,
+            quantity: 1,
+          },
+        ],
+        custom_data: {
+          app_user_id: userId,
+          plan_id: planId,
         },
-        body: JSON.stringify(payload),
-      }
-    );
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-success`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment-cancel`,
+      }),
+    });
 
-    const json = await checkoutRes.json();
+    const json = await res.json();
 
-    if (!checkoutRes.ok) {
-      console.error("Paddle checkout error:", json);
+    if (!res.ok) {
+      console.error("Paddle API error:", json);
       return new Response(
-        JSON.stringify({ error: "Error creando checkout de Paddle" }),
+        JSON.stringify({ error: "Error creando transacción" }),
         { status: 500 }
       );
     }
 
+    const checkoutUrl = json?.data?.checkout?.url;
+
+    if (!checkoutUrl) {
+      console.error("Missing checkout.url", json);
+      return new Response(
+        JSON.stringify({ error: "Paddle no devolvió checkout.url" }),
+        { status: 500 }
+      );
+    }
+
+    return new Response(JSON.stringify({ checkoutUrl }), { status: 200 });
+  } catch (e) {
+    console.error("create-checkout exception:", e);
     return new Response(
-      JSON.stringify({
-        checkoutUrl: json?.data?.url,
-      }),
-      { status: 200 }
-    );
-  } catch (e: any) {
-    console.error("create-checkout error:", e);
-    return new Response(
-      JSON.stringify({ error: e.message || "Error interno" }),
+      JSON.stringify({ error: "Error interno creando checkout" }),
       { status: 500 }
     );
   }
