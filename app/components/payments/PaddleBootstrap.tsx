@@ -1,17 +1,4 @@
 Paddle.Environment.set("sandbox");
-``` :contentReference[oaicite:0]{index=0}  
-
-Ahora mismo en tu `PaddleBootstrap` NO lo estamos haciendo, así que es muy probable que el overlay esté intentando abrir la transacción en producción y por eso se rompe.
-
----
-
-## 1️⃣ Actualiza `app/components/payments/PaddleBootstrap.tsx`
-
-Deja este archivo **exactamente así**:
-
-```tsx
-"use client";
-
 import Script from "next/script";
 
 declare global {
