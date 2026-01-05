@@ -20,7 +20,7 @@ export default function TerminosPage() {
         <article className="prose prose-sm sm:prose lg:prose-lg max-w-none">
           <h1>Términos y Condiciones de GlowShot AI</h1>
           <p>
-            <strong>Última actualización:</strong> 1 de abril de 2026
+            <strong>Última actualización:</strong> 1 de enero de 2026
           </p>
 
           <pre className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
