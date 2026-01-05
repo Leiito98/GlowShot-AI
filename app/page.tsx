@@ -14,7 +14,7 @@ import { StudioView } from "@/app/components/views/StudioView";
 import { GalleryView } from "@/app/components/views/GalleryView";
 import { PayModal } from "@/app/components/modals/PayModal";
 
-import { Plan, PlanId } from "@/app/config/plans";
+import { Plan, PlanId, plans  } from "@/app/config/plans";
 import {
   UXGender,
   AgeRange,
