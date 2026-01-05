@@ -5,7 +5,7 @@ import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
 
 import { supabase } from "@/app/lib/supabase";
 import { getPromptsForPack } from "@/lib/prompts";
-import { PaddleBootstrap } from "@/app/components/payments/PaddleBootstrap";
+import PaddleBootstrap from "@/app/components/payments/PaddleBootstrap";
 
 import { HeaderBar } from "@/app/components/layout/HeaderBar";
 import { HomeView } from "@/app/components/views/HomeView";
