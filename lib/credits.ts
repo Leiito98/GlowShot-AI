@@ -1,42 +1,50 @@
+// lib/credits.ts
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
 
-/**
- * Suma créditos al usuario y opcionalmente guarda el plan.
- */
-export async function addCreditsAndPlan(
-  userId: string,
-  packSize: number,
-  planId?: string
-) {
-  if (!userId) {
-    throw new Error("userId requerido");
+// Ajusta estos valores a la cantidad de fotos/créditos que da cada plan
+const PLAN_CREDITS: Record<string, number> = {
+  basic: 20,
+  standard: 40,
+  executive: 100,
+};
+
+export async function addCreditsAndPlan(userId: string, planId: string) {
+  const packSize = PLAN_CREDITS[planId];
+
+  if (!packSize) {
+    console.error("❌ PlanId desconocido en addCreditsAndPlan:", planId);
+    throw new Error(`PlanId desconocido: ${planId}`);
   }
 
   // 1) Leer créditos actuales
-  const { data: currentCreditData, error: currentError } =
-    await supabaseAdmin
-      .from("user_credits")
-      .select("credits")
-      .eq("user_id", userId)
-      .single();
+  const { data: currentCreditData, error: currentError } = await supabaseAdmin
+    .from("user_credits")
+    .select("credits")
+    .eq("user_id", userId)
+    .single();
 
-  if (currentError && (currentError as any).code !== "PGRST116") {
-    // PGRST116 = no rows found (primer compra)
+  if (currentError && currentError.code !== "PGRST116") {
+    // PGRST116 = no rows found (primer compra), eso no es grave
     console.error("Error leyendo créditos actuales:", currentError);
   }
 
-  const currentCredits = currentCreditData?.credits ?? 0;
-  const newAmount = currentCredits + packSize;
+  const currentCredits: number = currentCreditData?.credits ?? 0;
+
+  // 👇 IMPORTANTE: suma NUMÉRICA, nada de strings
+  const newAmount: number = currentCredits + packSize;
 
   // 2) Upsert de créditos
   const { error: upsertCreditsError } = await supabaseAdmin
     .from("user_credits")
-    .upsert({ user_id: userId, credits: newAmount });
+    .upsert({
+      user_id: userId,
+      credits: newAmount,
+    });
 
   if (upsertCreditsError) {
     console.error(
@@ -46,23 +54,23 @@ export async function addCreditsAndPlan(
     throw new Error("Fallo interno al guardar saldo.");
   }
 
-  // 3) Guardar / actualizar plan del usuario (si vino planId)
-  if (planId) {
-    const { error: upsertPlanError } = await supabaseAdmin
-      .from("user_plans")
-      .upsert({
-        user_id: userId,
-        plan_id: planId, // "basic" | "standard" | "executive"
-      });
+  // 3) Guardar / actualizar plan del usuario
+  const { error: upsertPlanError } = await supabaseAdmin
+    .from("user_plans")
+    .upsert({
+      user_id: userId,
+      plan_id: planId, // "basic" | "standard" | "executive"
+    });
 
-    if (upsertPlanError) {
-      console.error(
-        "⚠️ Error guardando user_plans (no bloquea créditos):",
-        upsertPlanError
-      );
-      // no tiramos error, porque los créditos ya se guardaron
-    }
+  if (upsertPlanError) {
+    console.error(
+      "⚠️ Error guardando user_plans (no bloquea créditos):",
+      upsertPlanError
+    );
+    // No lanzamos error porque los créditos ya se guardaron
   }
 
-  return { credits: newAmount };
+  console.log(
+    `✅ addCreditsAndPlan OK: user=${userId}, plan=${planId}, créditos=${currentCredits} → ${newAmount}`
+  );
 }
