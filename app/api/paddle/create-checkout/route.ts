@@ -40,12 +40,16 @@ export async function POST(req: Request) {
     const json = await res.json();
 
     if (!res.ok) {
-      console.error("Paddle API error:", json);
-      return new Response(
-        JSON.stringify({ error: "Error creando transacción" }),
-        { status: 500 }
-      );
+        console.error(
+          "Paddle API error:",
+          JSON.stringify(json, null, 2) // 👈 log completo
+        );
+        return new Response(
+          JSON.stringify({ error: "Error creando transacción con Paddle" }),
+          { status: 500 }
+        );
     }
+      
 
     const checkoutUrl = json?.data?.checkout?.url;
 
