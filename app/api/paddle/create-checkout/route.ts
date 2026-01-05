@@ -1,9 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 
-const API_BASE =
-  process.env.NODE_ENV === "production"
-    ? "https://api.paddle.com"
-    : "https://sandbox-api.paddle.com";
+const API_BASE = "https://sandbox-api.paddle.com";
 
 export async function POST(req: Request) {
   try {
