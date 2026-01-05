@@ -14,7 +14,7 @@ import { StudioView } from "@/app/components/views/StudioView";
 import { GalleryView } from "@/app/components/views/GalleryView";
 import { PayModal } from "@/app/components/modals/PayModal";
 
-import { Plan, PlanId, plans  } from "@/app/config/plans";
+import { Plan, PlanId } from "@/app/config/plans";
 import {
   UXGender,
   AgeRange,
@@ -656,7 +656,7 @@ export default function Home() {
                 </ul>
 
                 <button
-                  onClick={() => buyPlan(plans.basic)}
+                  onClick={() => buyPlan(basic)}
                   className="w-full bg-orange-500 text-black rounded-full py-2 font-semibold hover:bg-orange-400 transition"
                 >
                   Seleccionar
@@ -714,7 +714,7 @@ export default function Home() {
                 </ul>
 
                 <button
-                  onClick={() => buyPlan(plans.standard)}
+                  onClick={() => buyPlan(standard)}
                   className="w-full bg-orange-500 text-black rounded-full py-2 font-semibold hover:bg-orange-400 transition"
                 >
                   Seleccionar
@@ -769,7 +769,7 @@ export default function Home() {
                 </ul>
 
                 <button
-                  onClick={() => buyPlan(plans.executive)}
+                  onClick={() => buyPlan(executive)}
                   className="w-full bg-orange-500 text-black rounded-full py-2 font-semibold hover:bg-orange-400 transition"
                 >
                   Seleccionar
