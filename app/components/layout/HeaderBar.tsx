@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   SignedIn,
   SignedOut,
@@ -31,8 +32,15 @@ export function HeaderBar({ credits = 0 }: HeaderBarProps) {
       <div className="flex items-center gap-6">
         {/* Logo: siempre lleva al home */}
         <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="w-8 h-8 bg-[#ff5a1f] rounded-full flex items-center justify-center font-bold text-white text-sm">
-            A
+          <div className="w-15 h-15 relative">
+            <Image
+              src="/logo.png"
+              alt="GlowShot"
+              fill
+              sizes="36px"
+              className="rounded-full object-cover"
+              priority
+            />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-gray-900">
             GlowShot
