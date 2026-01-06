@@ -28,10 +28,9 @@ import {
 
 import { PlanId } from "@/app/config/plans";
 
-// tipo local, compatible con el del page.tsx
-type ToastType = "warning" | "info" | "success" | "error";
+export type ToastType = "warning" | "info" | "success" | "error";
 
-type StudioViewProps = {
+type DashboardViewProps = {
   weightsUrl: string | null;
   credits: number;
 
@@ -67,8 +66,8 @@ type StudioViewProps = {
   planId: PlanId | null;
   onFinishSetup: () => void;
 
-  // NUEVO: función para disparar toasts globales
   notify: (message: string, type?: ToastType) => void;
+  onBuyCredits: () => void;
 };
 
 // ---------- HELPERS PLAN ----------
@@ -96,18 +95,17 @@ function buildLimitMessage(
   const word = kind === "attires" ? "atuendo(s)" : "fondo(s)";
 
   if (planId === "basic") {
-    return `Tu plan ${label} permite solo ${max} ${word}. Actualiza al plan Estándar o Ejecutivo para desbloquear más opciones.`;
+    return `Tu plan ${label} permite solo ${max} ${word}. Actualizá al plan Estándar o Ejecutivo para desbloquear más opciones.`;
   }
 
   if (planId === "standard") {
-    return `Tu plan ${label} permite hasta ${max} ${word}. Actualiza al plan Ejecutivo para desbloquear todos.`;
+    return `Tu plan ${label} permite hasta ${max} ${word}. Actualizá al plan Ejecutivo para desbloquear todos.`;
   }
 
-  // Ejecutivo o sin planId
-  return `Con tu plan solo puedes elegir hasta ${max} ${word}.`;
+  return `Con tu plan solo podés elegir hasta ${max} ${word}.`;
 }
 
-export function StudioView({
+export function DashboardView({
   weightsUrl,
   credits,
   gender,
@@ -138,7 +136,8 @@ export function StudioView({
   planId,
   onFinishSetup,
   notify,
-}: StudioViewProps) {
+  onBuyCredits,
+}: DashboardViewProps) {
   // -------------------- WIZARD PREVIO --------------------
   const [setupStep, setSetupStep] = useState(0);
 
@@ -150,7 +149,7 @@ export function StudioView({
           ¿Cuál es tu sexo?
         </h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
-          Esto nos ayuda a generar fotos que se parezcan realmente a ti.
+          Esto nos ayuda a generar fotos que se parezcan realmente a vos.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
@@ -192,7 +191,7 @@ export function StudioView({
     (
       <section key="age" className="space-y-6">
         <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuántos años tienes?
+          ¿Cuántos años tenés?
         </h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
           Usamos esto para ajustar rasgos de forma sutil.
@@ -223,7 +222,7 @@ export function StudioView({
           ¿Cuál es tu color de pelo?
         </h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
-          Si tu color exacto no está, elige el más parecido.
+          Si tu color exacto no está, elegí el más parecido.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
@@ -357,12 +356,12 @@ export function StudioView({
     setSetupStep((s) => Math.max(s - 1, 0));
   };
 
-  // Si ES primera vez y NO hay modelo => sólo wizard
+  // Si ES primera vez y NO hay modelo => solo wizard
   if (showFullSetup && !weightsUrl) {
     return (
       <div className="max-w-4xl mx-auto px-6 pt-10">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">Conozcámonos primero ✨</h2>
+          <h2 className="text-3xl font-bold">Configurá tu perfil ✨</h2>
           <button onClick={onBack} className="text-sm text-gray-500">
             Volver
           </button>
@@ -458,29 +457,24 @@ export function StudioView({
   const visibleAttireOptions = ATTIRE_OPTIONS;
   const visibleBackgroundOptions = BACKGROUND_OPTIONS;
 
-  // Validación antes de llamar al onGenerate real
   const handleGenerateClick = () => {
     if (attires.length === 0) {
-      notify(
-        "Selecciona al menos un atuendo para generar tus fotos.",
-        "info"
-      );
+      notify("Seleccioná al menos un atuendo para generar tus fotos.", "info");
       return;
     }
 
     if (backgrounds.length === 0) {
-      notify(
-        "Selecciona al menos un fondo para generar tus fotos.",
-        "info"
-      );
+      notify("Seleccioná al menos un fondo para generar tus fotos.", "info");
       return;
     }
 
     if (credits <= 0) {
       notify(
-        "No tienes créditos suficientes. Compra un pack para seguir generando retratos.",
+        "No tenés créditos suficientes. Comprá un pack para seguir generando retratos.",
         "warning"
       );
+      onBuyCredits();
+      return;
     }
 
     onGenerate();
@@ -489,30 +483,30 @@ export function StudioView({
   return (
     <div className="max-w-4xl mx-auto px-6 pt-10">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold">Estudio de IA</h2>
-        <button onClick={onBack} className="text-sm text-gray-500">
-          Volver
-        </button>
+        <h2 className="text-3xl font-bold">Dashboard</h2>
       </div>
 
       {!weightsUrl ? (
         <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
           <h3 className="text-xl font-bold mb-4">
-            Aún no tienes un modelo activo
+            Aún no tenés un modelo entrenado
           </h3>
-          <p className="text-gray-500 mb-2">
-            Completa el entrenamiento subiendo tus fotos para empezar a generar
-            retratos.
+          <p className="text-gray-500 mb-4 max-w-md mx-auto">
+            Subí tus selfies para entrenar tu modelo y empezar a generar
+            retratos profesionales.
           </p>
-          <p className="text-sm text-gray-400">
-            Vuelve a la página de Inicio y sigue el flujo para subir tus
-            selfies.
-          </p>
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-900 transition"
+          >
+            Subir mis fotos
+            <span>→</span>
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-3xl shadow p-8 md:p-12">
           <h3 className="text-gray-500 font-medium mb-8 text-center">
-            Elige estilos, atuendos y fondos para tus nuevas fotos
+            Elegí estilos, atuendos y fondos para tus nuevas fotos
             profesionales.
           </h3>
 
@@ -534,11 +528,11 @@ export function StudioView({
           </div>
 
           <div className="space-y-8 max-w-2xl mx-auto">
-            {/* Atuendo */}
+            {/* Atuendos */}
             <section>
-              <h4 className="font-semibold mb-1">Selecciona tus atuendos</h4>
+              <h4 className="font-semibold mb-1">Seleccioná tus atuendos</h4>
               <p className="text-xs text-gray-400 mb-3">
-                Con tu plan puedes elegir hasta {maxAttires} atuendo(s).
+                Con tu plan podés elegir hasta {maxAttires} atuendo(s).
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {visibleAttireOptions.map((opt) => {
@@ -565,9 +559,9 @@ export function StudioView({
 
             {/* Fondos */}
             <section>
-              <h4 className="font-semibold mb-1">Selecciona tus fondos</h4>
+              <h4 className="font-semibold mb-1">Seleccioná tus fondos</h4>
               <p className="text-xs text-gray-400 mb-3">
-                Con tu plan puedes elegir hasta {maxBackgrounds} fondo(s).
+                Con tu plan podés elegir hasta {maxBackgrounds} fondo(s).
               </p>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {visibleBackgroundOptions.map((opt) => {
@@ -603,8 +597,8 @@ export function StudioView({
               {isGeneratingBatch
                 ? "Generando..."
                 : credits > 0
-                ? "✨ Generar Foto (1 crédito)"
-                : "Comprar Créditos"}
+                ? "✨ Generar foto (1 crédito)"
+                : "Comprar créditos"}
             </button>
           </div>
 
@@ -621,7 +615,7 @@ export function StudioView({
                     key={i}
                     className="rounded-xl overflow-hidden border border-gray-200"
                   >
-                    <img src={img} className="w-full" />
+                    <img src={img} alt={`Generada ${i + 1}`} className="w-full" />
                   </div>
                 ))}
               </div>

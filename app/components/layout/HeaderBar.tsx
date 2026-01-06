@@ -1,90 +1,130 @@
+// app/components/layout/HeaderBar.tsx
 "use client";
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
-
-type View = "home" | "upload" | "studio" | "gallery";
+import { usePathname } from "next/navigation";
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton,
+} from "@clerk/nextjs";
 
 type HeaderBarProps = {
-  view: View;
-  setView: (v: View) => void;
-  credits: number;
+  credits?: number;
 };
 
-export function HeaderBar({ view, setView, credits }: HeaderBarProps) {
+export function HeaderBar({ credits = 0 }: HeaderBarProps) {
+  const pathname = usePathname();
+  const isDashboard = pathname.startsWith("/dashboard");
+  const isMyPhotos = pathname.startsWith("/my-photos");
+
+  const scrollToId = (id: string) => {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <header className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-30">
-      {/* Logo + nombre, clic para ir a Inicio */}
-      <div
-        className="flex items-center gap-2 cursor-pointer"
-        onClick={() => setView("home")}
-      >
-        <div className="w-8 h-8 bg-[#ff5a1f] rounded-full flex items-center justify-center font-bold text-white text-sm">
-          A
-        </div>
-        <h1 className="text-xl font-bold tracking-tight text-gray-900">
-          GlowShot.ai
-        </h1>
-      </div>
+    <header className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white/95 backdrop-blur-sm sticky top-0 z-30">
+      {/* IZQUIERDA — Logo + navegación */}
+      <div className="flex items-center gap-6">
+        <Link
+          href=""
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <div className="w-8 h-8 bg-[#ff5a1f] rounded-full flex items-center justify-center font-bold text-white text-sm">
+            A
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-gray-900">
+            GlowShot
+          </h1>
+        </Link>
 
-      <div className="flex gap-4 items-center">
-        <SignedIn>
-          {/* Nav solo cuando el usuario está logueado */}
-          <nav className="hidden md:flex gap-6 mr-4 text-sm font-medium text-gray-600">
+        {/* Nav DESLOGUEADO: secciones de landing */}
+        <SignedOut>
+          <nav className="hidden md:flex gap-4 text-sm font-medium text-gray-600">
             <button
-              onClick={() => setView("home")}
-              className={view === "home" ? "text-[#ff5a1f]" : ""}
+              onClick={() => scrollToId("how-it-works")}
+              className="hover:text-[#ff5a1f] transition-colors"
             >
-              Inicio
+              Cómo funciona
             </button>
             <button
-              onClick={() => setView("studio")}
-              className={view === "studio" ? "text-[#ff5a1f]" : ""}
+              onClick={() => scrollToId("examples")}
+              className="hover:text-[#ff5a1f] transition-colors"
             >
-              Estudio
+              Ejemplos
             </button>
             <button
-              onClick={() => setView("gallery")}
-              className={view === "gallery" ? "text-[#ff5a1f]" : ""}
-            >
-              Mis Retratos
-            </button>
-
-            {/* Link a la landing de precios */}
-            <Link
-              href="/marketing"
+              onClick={() => scrollToId("pricing")}
               className="hover:text-[#ff5a1f] transition-colors"
             >
               Precios
+            </button>
+            <button
+              onClick={() => scrollToId("reviews")}
+              className="hover:text-[#ff5a1f] transition-colors"
+            >
+              Opiniones
+            </button>
+          </nav>
+        </SignedOut>
+
+        {/* Nav LOGUEADO: rutas reales */}
+        <SignedIn>
+          <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
+            <Link
+              href="/dashboard"
+              className={
+                isDashboard
+                  ? "text-[#ff5a1f]"
+                  : "hover:text-[#ff5a1f] transition-colors"
+              }
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              href="/my-photos"
+              className={
+                isMyPhotos
+                  ? "text-[#ff5a1f]"
+                  : "hover:text-[#ff5a1f] transition-colors"
+              }
+            >
+              Mis retratos
             </Link>
           </nav>
+        </SignedIn>
+      </div>
 
+      {/* DERECHA — CTA / Créditos / Usuario */}
+      <div className="flex items-center gap-3">
+        {/* DESLOGUEADO: Iniciar sesión + Comenzar */}
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="hidden sm:inline border border-[#ff5a1f] text-[#ff5a1f] px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#fff3ec] transition">
+              Iniciar sesión
+            </button>
+          </SignInButton>
+
+          <SignInButton mode="modal">
+            <button className="bg-[#ff5a1f] text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-[#e04f1b] transition">
+              Comenzar
+            </button>
+          </SignInButton>
+        </SignedOut>
+
+        {/* LOGUEADO: créditos + avatar */}
+        <SignedIn>
           {credits > 0 && (
-            <div className="bg-orange-50 text-orange-700 px-4 py-1.5 rounded-full text-sm font-bold border border-orange-100 mr-2">
-              📸 {credits} Créditos
+            <div className="bg-orange-50 text-orange-700 px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold border border-orange-100 mr-1">
+              📸 {credits} créditos
             </div>
           )}
-
           <UserButton afterSignOutUrl="/" />
         </SignedIn>
-
-        <SignedOut>
-          {/* Cuando NO está logueado: botón Comenzar + link a Pricing */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/marketing"
-              className="hidden md:inline text-sm font-medium text-gray-600 hover:text-[#ff5a1f] transition-colors"
-            >
-              Precios
-            </Link>
-
-            <SignInButton mode="modal">
-              <button className="bg-[#ff5a1f] text-white px-5 py-2 rounded-full font-bold hover:bg-[#e04f1b] transition">
-                Comenzar
-              </button>
-            </SignInButton>
-          </div>
-        </SignedOut>
       </div>
     </header>
   );

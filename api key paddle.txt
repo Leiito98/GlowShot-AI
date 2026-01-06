@@ -1,0 +1,5 @@
+NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=test_47863c280d0f97764c711d4fda8   client-side tokens
+
+
+PADDLE_WEBHOOK_SECRET=ntfset_01ke7q63rwqe49zp7h3pa746fz
+PADDLE_API_KEY=pdl_sdbx_apikey_01ke7pt5kf49a0w36nhhxyjhgx_p95MSCtz9eACBexrz8Bx0G_A5u
