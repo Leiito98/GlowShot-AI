@@ -70,7 +70,7 @@ export function PayModal({ isOpen, onClose, onSelectPlan }: PayModalProps) {
 
               <button
                 onClick={() => onSelectPlan(plan)}
-                className={`w-full rounded-xl py-4 text-sm font-bold ${
+                className={`w-full rounded-xl py-4 text-sm font-bold cursor-pointer ${
                   plan.highlight
                     ? "bg-[#ff5a1f] text-white hover:bg-[#e04f1b]"
                     : "bg-gray-100 text-gray-900 hover:bg-gray-200"

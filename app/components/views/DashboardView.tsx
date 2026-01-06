@@ -458,16 +458,6 @@ export function DashboardView({
   const visibleBackgroundOptions = BACKGROUND_OPTIONS;
 
   const handleGenerateClick = () => {
-    if (attires.length === 0) {
-      notify("Seleccioná al menos un atuendo para generar tus fotos.", "info");
-      return;
-    }
-
-    if (backgrounds.length === 0) {
-      notify("Seleccioná al menos un fondo para generar tus fotos.", "info");
-      return;
-    }
-
     if (credits <= 0) {
       notify(
         "No tenés créditos suficientes. Comprá un pack para seguir generando retratos.",
@@ -477,6 +467,15 @@ export function DashboardView({
       return;
     }
 
+    if (attires.length === 0) {
+      notify("Seleccioná al menos un atuendo para generar tus fotos.", "info");
+      return;
+    }
+
+    if (backgrounds.length === 0) {
+      notify("Seleccioná al menos un fondo para generar tus fotos.", "info");
+      return;
+    }
     onGenerate();
   };
 
@@ -514,9 +513,10 @@ export function DashboardView({
           <div className="flex justify-center flex-wrap gap-3 mb-10 max-w-xl mx-auto">
             {STYLE_CATEGORIES.map((cat) => (
               <button
+                role="button"
                 key={cat.key}
                 onClick={() => setSelectedStyle(cat.key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer ${
                   selectedStyle === cat.key
                     ? "bg-[#ff5a1f] text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -541,7 +541,7 @@ export function DashboardView({
                     <button
                       key={opt.id}
                       onClick={() => toggleAttire(opt.id)}
-                      className={`p-4 rounded-2xl border text-left text-sm ${
+                      className={`p-4 rounded-2xl border text-left text-sm cursor-pointer active:scale-[0.98] ${
                         isSelected
                           ? "border-orange-500 bg-orange-50"
                           : "border-gray-200 bg-gray-50 hover:bg-gray-100"
@@ -570,7 +570,7 @@ export function DashboardView({
                     <button
                       key={opt.id}
                       onClick={() => toggleBackground(opt.id)}
-                      className={`p-4 rounded-2xl border text-left text-sm ${
+                      className={`p-4 rounded-2xl border text-left text-sm cursor-pointer active:scale-[0.98] ${
                         isSelected
                           ? "border-orange-500 bg-orange-50"
                           : "border-gray-200 bg-gray-50 hover:bg-gray-100"
@@ -592,7 +592,7 @@ export function DashboardView({
             <button
               onClick={handleGenerateClick}
               disabled={isGeneratingBatch}
-              className="w-full max-w-md bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-orange-200 transition disabled:opacity-70 mx-auto"
+              className="w-full max-w-md bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-orange-200 transition cursor-pointer disabled:opacity-70 mx-auto"
             >
               {isGeneratingBatch
                 ? "Generando..."

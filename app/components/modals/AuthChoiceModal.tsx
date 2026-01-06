@@ -15,7 +15,7 @@ export function AuthChoiceModal({ isOpen, onClose }: AuthChoiceModalProps) {
       <div className="relative w-full max-w-md bg-white rounded-3xl p-8 shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-black text-lg font-bold"
+          className="absolute top-5 right-5 text-gray-400 hover:text-black text-lg font-bold cursor-pointer"
         >
           ✕
         </button>
@@ -30,14 +30,14 @@ export function AuthChoiceModal({ isOpen, onClose }: AuthChoiceModalProps) {
         <div className="space-y-3">
           {/* Registrarme */}
           <SignUpButton mode="modal" forceRedirectUrl="/">
-            <button className="w-full py-3 rounded-xl bg-[#ff5a1f] text-white font-semibold hover:bg-[#e04f1b] transition">
+            <button className="w-full py-3 rounded-xl bg-[#ff5a1f] text-white font-semibold hover:bg-[#e04f1b] cursor-pointer transition">
               Registrarme
             </button>
           </SignUpButton>
 
           {/* Ya tengo cuenta */}
           <SignInButton mode="modal" forceRedirectUrl="/">
-            <button className="w-full py-3 rounded-xl border border-gray-200 text-gray-900 font-semibold hover:bg-gray-50 transition">
+            <button className="w-full py-3 rounded-xl border border-gray-200 text-gray-900 font-semibold hover:bg-gray-50 cursor-pointer transition">
               Ya tengo cuenta · Iniciar sesión
             </button>
           </SignInButton>

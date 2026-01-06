@@ -18,7 +18,7 @@ export function HelpSection() {
         </p>
 
         <button
-          className="bg-gray-900 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-black transition"
+          className="bg-gray-900 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-black cursor-pointer transition"
           onClick={() =>
             alert(
               "Más adelante acá conectamos un formulario o un chat 😉"
