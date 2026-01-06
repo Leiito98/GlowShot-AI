@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export function HelpSection() {
   return (
     <section
@@ -17,16 +19,12 @@ export function HelpSection() {
           posible.
         </p>
 
-        <button
-          className="bg-gray-900 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-black cursor-pointer transition"
-          onClick={() =>
-            alert(
-              "Más adelante acá conectamos un formulario o un chat 😉"
-            )
-          }
+        <Link
+          href="/marketing"
+          className="bg-gray-900 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-black cursor-pointer transition inline-block"
         >
           Contactar soporte
-        </button>
+        </Link>
       </div>
     </section>
   );

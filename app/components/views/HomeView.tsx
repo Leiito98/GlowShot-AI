@@ -260,7 +260,71 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      {/* ... esta sección la dejamos igual ... */}
+      <section className="space-y-6">
+        <div className="text-center max-w-2xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">
+            Consigue tus fotos en{" "}
+            <span className="text-orange-500">4 pasos simples</span>.
+          </h2>
+          <p className="text-sm md:text-base text-gray-600">
+            Sin equipos profesionales ni estudio físico. Solo tus selfies y unos
+            minutos.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm cursor-pointer">
+            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-sm font-bold mb-3 ">
+              1
+            </div>
+            <h3 className="font-semibold mb-1 text-sm ">Subí tus fotos</h3>
+            <p className="text-xs text-gray-500">
+              Elige entre 8 y 15 selfies donde se vea bien tu cara. No hace
+              falta que sean perfectas.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm cursor-pointer">
+            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-sm font-bold mb-3">
+              2
+            </div>
+            <h3 className="font-semibold mb-1 text-sm">
+              Entrenamos tu modelo IA
+            </h3>
+            <p className="text-xs text-gray-500">
+              Creamos un modelo privado solo con tu rostro para mantener la
+              coherencia en todas las fotos.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm cursor-pointer">
+            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-sm font-bold mb-3">
+              3
+            </div>
+            <h3 className="font-semibold mb-1 text-sm">
+              Elegís estilo y escenario
+            </h3>
+            <p className="text-xs text-gray-500">
+              Oficina, exterior urbano, fondo neutro, citas… combiná atuendos y
+              fondos en segundos.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm cursor-pointer">
+            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 text-orange-700 text-sm font-bold mb-3">
+              4
+            </div>
+            <h3 className="font-semibold mb-1 text-sm">
+              Descargás tus retratos
+            </h3>
+            <p className="text-xs text-gray-500">
+              Descargá tus fotos en alta calidad y usalas donde quieras:
+              LinkedIn, CV, redes sociales o apps de citas.
+            </p>
+          </div>
+        </div>
+      </section>
+
 
       <section className="space-y-6">
         {/* ... */}
