@@ -3,16 +3,46 @@ import { createClient } from "@supabase/supabase-js";
 import { addCreditsAndPlan } from "@/lib/credits";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-function normalizePlanId(planIdRaw) {
-  const planId = String(planIdRaw || "").trim();
-  if (planId === "basic" || planId === "standard" || planId === "executive") return planId;
+function normalizePlanId(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  if (v === "basic" || v === "standard" || v === "executive") return v;
   return null;
+}
+
+function extractUserAndPlan(note) {
+  // Preferimos metadata (lo más limpio)
+  const metaUser =
+    note?.metadata?.app_user_id ??
+    note?.metadata?.appUserId ??
+    note?.metadata?.user_id ??
+    null;
+
+  const metaPlan =
+    normalizePlanId(note?.metadata?.plan_id) ??
+    normalizePlanId(note?.metadata?.planId) ??
+    null;
+
+  // Fallback external_reference "userId:planId"
+  let extUser = null;
+  let extPlan = null;
+  const ext = String(note?.external_reference || "");
+  if (ext.includes(":")) {
+    const [u, p] = ext.split(":");
+    if (u) extUser = String(u);
+    extPlan = normalizePlanId(p);
+  }
+
+  const userId = metaUser ? String(metaUser) : extUser;
+  const planId = metaPlan || extPlan;
+
+  return { userId, planId };
 }
 
 export async function POST(req) {
@@ -22,151 +52,102 @@ export async function POST(req) {
       return new Response("Missing token", { status: 500 });
     }
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("❌ Falta SUPABASE env (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
+      console.error("❌ Falta SUPABASE env");
       return new Response("Missing supabase env", { status: 500 });
     }
 
     const body = await req.json().catch(() => null);
     if (!body) return new Response("Bad JSON", { status: 400 });
 
-    // MP suele mandar:
-    // { type: "payment", data: { id: "123" } }
-    // o { action, api_version, data: { id }, ... }
+    // MP manda: { type: "payment", data: { id } } o variantes
     const paymentId = body?.data?.id || body?.id || null;
-    const type = body?.type || body?.topic || null;
+    const topic = body?.type || body?.topic || null;
 
-    // Si no es pago, ignoramos (2xx para que MP no reintente)
+    // Ignorar cosas que no sean payment
     if (!paymentId) return new Response("Ignored", { status: 200 });
-    if (type && type !== "payment") return new Response("Ignored", { status: 200 });
+    if (topic && String(topic) !== "payment") return new Response("Ignored", { status: 200 });
 
-    // (A) Idempotencia rápida: si ya procesamos ese payment_id, cortamos acá
-    {
-      const { data: existing, error } = await supabaseAdmin
-        .from("mp_payments")
-        .select("payment_id")
-        .eq("payment_id", String(paymentId))
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ Error leyendo mp_payments:", error);
-        // Si no podemos validar idempotencia, mejor 500 para que MP reintente
-        return new Response("DB error", { status: 500 });
-      }
-
-      if (existing?.payment_id) {
-        return new Response("Already processed", { status: 200 });
-      }
-    }
-
-    // 1) Consultar pago real a MP
+    // 1) Consultar pago real en MP
     const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+      cache: "no-store",
     });
 
     const note = await r.json();
-
     if (!r.ok) {
       console.error("❌ MP payment fetch error:", note);
-      return new Response("MP fetch error", { status: 500 });
+      return new Response("MP fetch error", { status: 500 }); // para que MP reintente
     }
 
-    // 2) Validar estado
-    // approved = pago acreditado
-    if (note?.status !== "approved") {
-      // Guardamos igualmente el registro como "no aprobado" para evitar loops raros?
-      // No: mejor NO marcarlo como procesado hasta approved, así MP reintenta y luego acredita.
+    const status = String(note?.status || "");
+    // Solo acreditamos si approved
+    if (status !== "approved") {
+      // Podés opcionalmente guardar el evento igual (historial). Yo lo guardo sin acreditar:
+      try {
+        await supabaseAdmin.from("mp_payments").insert({
+          payment_id: String(paymentId),
+          status,
+          amount: Number(note?.transaction_amount || 0),
+          currency: String(note?.currency_id || "ARS"),
+          credited: false,
+          raw: note,
+          created_at: new Date().toISOString(),
+        });
+      } catch {
+        // si ya existe por unique, no pasa nada
+      }
+
       return new Response("Not approved", { status: 200 });
     }
 
-    // 3) Obtener user + plan
-    // ✅ Tu create-checkout ya manda metadata: { app_user_id, plan_id }
-    const appUserId =
-      note?.metadata?.app_user_id ||
-      note?.metadata?.appUserId ||
-      null;
+    // 2) Resolver userId + planId
+    const { userId, planId } = extractUserAndPlan(note);
 
-    const planId =
-      normalizePlanId(note?.metadata?.plan_id) ||
-      normalizePlanId(note?.metadata?.planId) ||
-      null;
-
-    // Fallback por si alguna vez usás external_reference tipo "userId:planId"
-    if (!appUserId || !planId) {
-      const ext = String(note?.external_reference || "");
-      if (ext.includes(":")) {
-        const [u, p] = ext.split(":");
-        if (!appUserId && u) {
-          // ojo: si venía con metadata, no pisa; solo fallback
-        }
-      }
-    }
-
-    const finalUserId = appUserId ? String(appUserId) : null;
-    const finalPlanId =
-      planId ||
-      (() => {
-        const ext = String(note?.external_reference || "");
-        const parts = ext.split(":");
-        const p = parts?.[1];
-        return normalizePlanId(p);
-      })();
-
-    const fallbackUserId =
-      finalUserId ||
-      (() => {
-        const ext = String(note?.external_reference || "");
-        const parts = ext.split(":");
-        const u = parts?.[0];
-        return u ? String(u) : null;
-      })();
-
-    if (!fallbackUserId || !finalPlanId) {
-      console.error("⚠️ No pude resolver app_user_id / plan_id desde MP:", {
+    if (!userId || !planId) {
+      console.error("⚠️ Missing userId/planId desde MP:", {
         paymentId,
         metadata: note?.metadata,
         external_reference: note?.external_reference,
       });
-      // Respondemos 200 para que no reintente infinito, pero no acreditamos
       return new Response("Missing metadata", { status: 200 });
     }
 
-    // 4) Insertar en mp_payments primero (idempotencia fuerte)
-    //    Si hay carrera (MP manda duplicado), unique constraint evita doble crédito.
+    // 3) Insert idempotente (UNIQUE(payment_id))
     const insertPayload = {
       payment_id: String(paymentId),
-      user_id: String(fallbackUserId),
-      plan_id: String(finalPlanId),
-      status: String(note?.status || ""),
+      user_id: String(userId),
+      plan_id: String(planId),
+      status,
       amount: Number(note?.transaction_amount || 0),
       currency: String(note?.currency_id || "ARS"),
+      credited: false,
       raw: note, // jsonb
+      created_at: new Date().toISOString(),
     };
 
-    const { error: insErr } = await supabaseAdmin
-      .from("mp_payments")
-      .insert(insertPayload);
+    const { error: insErr } = await supabaseAdmin.from("mp_payments").insert(insertPayload);
 
     if (insErr) {
-      // Si es duplicado por unique, lo tratamos como OK (ya procesado)
-      const msg = String(insErr.message || "");
-      const isDuplicate =
-        msg.toLowerCase().includes("duplicate") ||
-        msg.toLowerCase().includes("unique") ||
-        msg.toLowerCase().includes("23505");
-      if (isDuplicate) return new Response("Already processed", { status: 200 });
-
+      const msg = String(insErr.message || "").toLowerCase();
+      const isDuplicate = msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505");
+      if (isDuplicate) {
+        // Ya fue procesado (o al menos insertado). Aseguramos que no duplique crédito.
+        return new Response("Already processed", { status: 200 });
+      }
       console.error("❌ Error insert mp_payments:", insErr);
       return new Response("DB insert error", { status: 500 });
     }
 
-    // 5) Acreditar créditos + plan (tu helper)
-    await addCreditsAndPlan(String(fallbackUserId), String(finalPlanId));
+    // 4) Acreditar (solo una vez gracias al UNIQUE + insert antes)
+    await addCreditsAndPlan(String(userId), String(planId));
 
-    console.log("✅ Créditos acreditados:", {
-      userId: fallbackUserId,
-      planId: finalPlanId,
-      paymentId,
-    });
+    // 5) Marcar como acreditado
+    await supabaseAdmin
+      .from("mp_payments")
+      .update({ credited: true, credited_at: new Date().toISOString() })
+      .eq("payment_id", String(paymentId));
+
+    console.log("✅ Créditos acreditados:", { userId, planId, paymentId });
 
     return new Response("OK", { status: 200 });
   } catch (e) {

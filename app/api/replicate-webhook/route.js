@@ -2,45 +2,76 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Necesario para que Next.js App Router acepte webhooks externos
-export const runtime = "nodejs";
-export const maxDuration = 60;
+function extractTarUrl(output) {
+  // output puede ser string (url), array, o objeto con weights
+  if (!output) return null;
+
+  if (typeof output === "string") {
+    return output.endsWith(".tar") || output.includes(".tar") ? output : output;
+  }
+
+  if (Array.isArray(output)) {
+    const hit = output.find((x) => typeof x === "string" && x.includes(".tar"));
+    return hit || (typeof output[0] === "string" ? output[0] : null);
+  }
+
+  // objeto
+  const w = output.weights;
+  if (typeof w === "string") return w;
+  if (Array.isArray(w)) {
+    const hit = w.find((x) => typeof x === "string" && x.includes(".tar"));
+    return hit || (typeof w[0] === "string" ? w[0] : null);
+  }
+
+  return null;
+}
 
 export async function POST(request) {
   try {
     const body = await request.json();
     console.log("📩 Webhook Replicate:", JSON.stringify(body, null, 2));
 
-    const { id: trainingId, status, error, output } = body;
+    const trainingId = body?.id;
+    const status = body?.status; // e.g. starting, processing, succeeded, failed, canceled
+    const error = body?.error;
+    const output = body?.output;
 
-    // 1️⃣ Buscar la predicción vinculada
+    if (!trainingId) return NextResponse.json({ ok: true });
+
+    // buscar prediction
     const { data: prediction, error: predError } = await supabaseAdmin
       .from("predictions")
       .select("*")
       .eq("training_id", trainingId)
-      .single();
+      .maybeSingle();
 
     if (predError || !prediction) {
       console.error("❌ Prediction no encontrada para training_id:", trainingId);
       return NextResponse.json({ ok: true });
     }
 
-    // 2️⃣ Actualizar progreso (mientras NO haya terminado)
-    if (!["succeeded", "completed", "failed", "canceled"].includes(status)) {
+    const isTerminal = ["succeeded", "completed", "failed", "canceled"].includes(
+      String(status || "")
+    );
+
+    if (!isTerminal) {
       await supabaseAdmin
         .from("predictions")
-        .update({ status })
+        .update({ status: String(status || "processing") })
         .eq("training_id", trainingId);
 
       return NextResponse.json({ ok: true });
     }
 
-    // 3️⃣ Si falló
+    // failed/canceled
     if (status === "failed" || status === "canceled") {
       await supabaseAdmin
         .from("predictions")
@@ -54,22 +85,15 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    // ================================
-    // 4️⃣ TRAINING EXITOSO (succeeded)
-    // ================================
-
-    // Debe existir output.weights con el .tar final
-    const tarUrl =
-      output?.weights?.[0] ||
-      (Array.isArray(output?.weights) ? output.weights[0] : null);
+    // succeeded/completed
+    const tarUrl = extractTarUrl(output);
 
     if (!tarUrl) {
-      console.error("❌ No se encontró el archivo .tar en output.weights");
       await supabaseAdmin
         .from("predictions")
         .update({
           status: "failed",
-          error: "No se encontró output.weights",
+          error: "No se encontró URL de pesos (output) en webhook.",
           finished_at: new Date().toISOString(),
         })
         .eq("training_id", trainingId);
@@ -77,24 +101,20 @@ export async function POST(request) {
       return NextResponse.json({ ok: true });
     }
 
-    console.log("📦 LoRA .tar detectado:", tarUrl);
-
-    // 5️⃣ Guardar en Supabase
     await supabaseAdmin
       .from("predictions")
       .update({
         status: "completed",
-        lora_url: tarUrl, // 👈 ahora sí guardamos el .tar real
+        lora_url: tarUrl,
         finished_at: new Date().toISOString(),
       })
       .eq("training_id", trainingId);
 
-    console.log("🎉 LoRA guardado correctamente:", tarUrl);
+    console.log("🎉 LoRA guardado:", tarUrl);
 
     return NextResponse.json({ ok: true });
-
   } catch (err) {
     console.error("🔥 ERROR WEBHOOK:", err);
-    return NextResponse.json({ ok: false, error: err.message });
+    return NextResponse.json({ ok: false });
   }
 }

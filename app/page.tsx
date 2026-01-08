@@ -10,10 +10,8 @@ import { PricingSection } from "@/app/components/sections/PricingSection";
 import { HelpSection } from "@/app/components/sections/HelpSection";
 import { HomeView } from "@/app/components/views/HomeView";
 import { AuthChoiceModal } from "@/app/components/modals/AuthChoiceModal";
-import { PayModal } from "@/app/components/modals/PayModal"; // ✅ NUEVO
+import { PayModal } from "@/app/components/modals/PayModal";
 import { Plan } from "@/app/config/plans";
-
-type PayMethod = "mercadopago" | "payu" | "usdt"; // ✅ debe coincidir con PayModal
 
 export default function LandingPage() {
   const { isSignedIn } = useUser();
@@ -21,18 +19,12 @@ export default function LandingPage() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // ✅ Modal métodos de pago
+  // ✅ Modal pagos
   const [showPayModal, setShowPayModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
 
-  const [selectedPlan, setSelectedPlan] = useState<
-    "basic" | "standard" | "executive" | null
-  >(null);
-
-  // Comprar plan (logueado) usando MercadoPago Checkout Pro (Sandbox/Prod)
+  // Comprar plan usando MercadoPago Checkout Pro
   const buyPlanMP = async (plan: Plan) => {
-    setSelectedPlan(plan.id as "basic" | "standard" | "executive");
-
     try {
       const res = await fetch("/api/mp/create-checkout", {
         method: "POST",
@@ -48,7 +40,6 @@ export default function LandingPage() {
         return;
       }
 
-      // Redirect a MercadoPago
       window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error(err);
@@ -56,45 +47,35 @@ export default function LandingPage() {
     }
   };
 
-  // ✅ En lugar de pagar directo, guardamos plan y abrimos modal de métodos
+  // Abrir modal métodos para un plan
   const openPaymentMethodsForPlan = (plan: Plan) => {
     setPendingPlan(plan);
     setShowPayModal(true);
-  };
-
-  const handleSelectMethod = (method: PayMethod) => {
-    if (!pendingPlan) return;
-
-    if (method === "mercadopago") {
-      setShowPayModal(false);
-      buyPlanMP(pendingPlan);
-      return;
-    }
-
-    if (method === "payu") {
-      alert("PayU (pagos internacionales) lo conectamos en el próximo paso.");
-      // acá luego: buyPlanPayU(pendingPlan)
-      return;
-    }
-
-    if (method === "usdt") {
-      alert("USDT (crypto) lo conectamos en el próximo paso.");
-      // acá luego: flujo USDT (orden + instrucciones)
-      return;
-    }
   };
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-b from-gray-50 via-white to-orange-50 text-gray-900 selection:bg-orange-100 selection:text-orange-900">
       <HeaderBar />
 
-      {/* ✅ Modal métodos de pago (solo logueado y cuando eligen un plan) */}
+      {/* ✅ Modal pagos (logueado) */}
       <SignedIn>
-        <PayModal
-          isOpen={showPayModal}
-          onClose={() => setShowPayModal(false)}
-          onSelectMethod={handleSelectMethod}
-        />
+      <PayModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        preselectedPlanId={pendingPlan?.id ?? null}
+        onSelect={({ plan, method }) => {
+          if (method === "mercadopago") {
+            setShowPayModal(false);
+            buyPlanMP(plan);
+            return;
+          }
+          if (method === "payu") {
+            alert("PayU (pagos internacionales) lo conectamos en el próximo paso.");
+            return;
+          }
+          alert("USDT (crypto) lo conectamos en el próximo paso.");
+        }}
+      />
       </SignedIn>
 
       <main className="pb-20">
@@ -108,21 +89,17 @@ export default function LandingPage() {
                 </p>
                 <h1 className="text-3xl md:text-4xl font-bold mb-3">
                   Fotos profesionales de estudio{" "}
-                  <span className="text-orange-500">en minutos</span>, no en
-                  días.
+                  <span className="text-orange-500">en minutos</span>, no en días.
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 max-w-2xl mb-5">
-                  Entrená tu propio modelo con tus fotos y obtené retratos
-                  listos para LinkedIn, CV, Instagram o apps de citas sin salir
-                  de casa.
+                  Entrená tu propio modelo con tus fotos y obtené retratos listos
+                  para LinkedIn, CV, Instagram o apps de citas sin salir de casa.
                 </p>
 
-                {/* Landing content (incluye #how-it-works y #examples) */}
                 <HomeView onCreateClick={() => setShowAuthModal(true)} />
               </div>
             </section>
 
-            {/* ✅ PRICING ancla real */}
             <section id="pricing" className="scroll-mt-24">
               <PricingSection
                 showButtons
@@ -130,7 +107,6 @@ export default function LandingPage() {
               />
             </section>
 
-            {/* ✅ REVIEWS ancla real */}
             <section id="reviews" className="scroll-mt-24">
               <HelpSection />
             </section>
@@ -157,22 +133,14 @@ export default function LandingPage() {
                   fotos profesionales con un solo clic.
                 </p>
 
-                {/* CTA principal logueado */}
                 <HomeView onCreateClick={() => router.push("/dashboard")} />
               </div>
             </section>
 
-            {/* ✅ PRICING ancla real (logueado) */}
-            {/* ✅ Antes: onSelectPlan={buyPlan}  -> Abría MP directo */}
-            {/* ✅ Ahora: abre el modal de métodos */}
             <section id="pricing" className="scroll-mt-24">
-              <PricingSection
-                showButtons
-                onSelectPlan={openPaymentMethodsForPlan}
-              />
+              <PricingSection showButtons onSelectPlan={openPaymentMethodsForPlan} />
             </section>
 
-            {/* ✅ REVIEWS ancla real (logueado) */}
             <section id="reviews" className="scroll-mt-24">
               <HelpSection />
             </section>

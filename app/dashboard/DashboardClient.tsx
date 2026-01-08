@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// app/dashboard/DashboardClient.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -32,38 +32,27 @@ import {
 } from "@/app/types/studio";
 
 type DashboardMode = "upload" | "dashboard";
-// Solo para el Header (coincide con el type View del HeaderBar)
-type HeaderView = "home" | "upload" | "dashboard" | "mypictures";
-
-// ✅ Debe coincidir con tu PayModal nuevo (onSelectMethod)
 type PayMethod = "mercadopago" | "payu" | "usdt";
 
-export default function DashboardPage() {
+const TRAIN_COST = 40;
+
+export default function DashboardClient() {
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Vista interna del dashboard
   const [mode, setMode] = useState<DashboardMode>("dashboard");
 
-  // Vista para el Header (para poder usar el mismo HeaderBar en todas las rutas)
-  const [headerView, setHeaderView] = useState<HeaderView>("dashboard");
-
-  const handleHeaderSetView = (v: HeaderView) => {
-    setHeaderView(v);
-    if (v === "home") router.push("/");
-    if (v === "dashboard") router.push("/dashboard");
-    if (v === "mypictures") router.push("/my-photos");
-    // "upload" no es ruta directa; se maneja dentro de este componente
-  };
-
   // Plan / preferencias
   const [currentPlan, setCurrentPlan] = useState<PlanId | null>(null);
-  const [hasCompletedPreferences, setHasCompletedPreferences] =
-    useState(false);
+  const [hasCompletedPreferences, setHasCompletedPreferences] = useState(false);
 
   // Entrenamiento
   const [trainingId, setTrainingId] = useState<string | null>(null);
+  const [trainingBlockedReason, setTrainingBlockedReason] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("idle");
   const [weightsUrl, setWeightsUrl] = useState<string | null>(null);
 
@@ -73,19 +62,14 @@ export default function DashboardPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [credits, setCredits] = useState<number>(0);
 
-  const [selectedPlan, setSelectedPlan] = useState<
-    "basic" | "standard" | "executive" | null
-  >(null);
-
   // Preferencias de estudio
   const [gender, setGender] = useState<UXGender>("woman");
   const [selectedStyle, setSelectedStyle] = useState<string>("Professional");
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  // Esta galería no se usa acá, pero la dejamos por si luego la necesitás
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
 
-  // ✅ modal métodos
+  // Modal pagos
   const [showPayModal, setShowPayModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
 
@@ -101,46 +85,37 @@ export default function DashboardPage() {
   // ---------- TOASTS ----------
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const pushToast = (message: string, type: ToastType = "info") => {
+  const pushToast = useCallback((message: string, type: ToastType = "info") => {
     const id = Date.now() + Math.random();
     const toast: ToastMessage = { id, type, message };
     setToasts((prev) => [...prev, toast]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
-  };
-
-  const searchParams = useSearchParams();
-
-    useEffect(() => {
-        const paid = searchParams.get("paid");
-        if (paid !== "1") return;
-
-        pushToast("✅ Compra exitosa. Acreditando créditos…", "success");
-
-        let tries = 0;
-        const t = setInterval(async () => {
-            tries += 1;
-            await fetchCredits(); // si ya acreditó, verás los créditos subir
-
-            if (tries >= 4) {
-            clearInterval(t);
-            router.replace("/dashboard");
-            }
-        }, 1500);
-
-        return () => clearInterval(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-  
+  }, []);
 
   const closeToast = (id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // --- Leer créditos ---
+  const fetchCredits = useCallback(async (): Promise<number> => {
+    if (!user) return 0;
+    try {
+      const res = await fetch("/api/get-credits");
+      if (!res.ok) throw new Error("API falló al leer créditos");
+      const data = await res.json();
+      const c = Number(data.credits || 0);
+      setCredits(c);
+      return c;
+    } catch {
+      setCredits(0);
+      return 0;
+    }
+  }, [user]);
+
   // --- Cargar galería (por si luego la usás acá) ---
-  const loadGallery = async () => {
+  const loadGallery = useCallback(async () => {
     if (!user) return;
     try {
       const res = await fetch("/api/my-images");
@@ -149,42 +124,56 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error cargando galería:", error);
     }
-  };
+  }, [user]);
 
-  // --- Leer créditos ---
-  const fetchCredits = async () => {
+  // ✅ abrir modal métodos (opcionalmente con plan preseleccionado)
+  const openPayModal = useCallback((plan?: Plan) => {
+    if (plan) setPendingPlan(plan);
+    else setPendingPlan(null);
+    setShowPayModal(true);
+  }, []);
+
+  // ✅ si vuelve de MP con ?paid=1 mostramos toast y refrescamos créditos
+  useEffect(() => {
     if (!user) return;
-    try {
-      const res = await fetch("/api/get-credits");
-      if (!res.ok) throw new Error("API falló al leer créditos");
-      const data = await res.json();
-      setCredits(data.credits);
-    } catch {
-      setCredits(0);
-    }
-  };
+
+    const paid = searchParams.get("paid");
+    if (paid !== "1") return;
+
+    pushToast("✅ Compra exitosa. Acreditando créditos…", "success");
+
+    let tries = 0;
+    const t = setInterval(async () => {
+      tries += 1;
+      await fetchCredits();
+
+      if (tries >= 6) {
+        clearInterval(t);
+        router.replace("/dashboard");
+      }
+    }, 1500);
+
+    return () => clearInterval(t);
+  }, [searchParams, user, fetchCredits, pushToast, router]);
 
   // Carga inicial y polling
   useEffect(() => {
     setIsLoaded(true);
-    let intervalId: NodeJS.Timeout;
+    let intervalId: NodeJS.Timeout | undefined;
 
-    // Cargar plan y preferencias desde localStorage
     if (typeof window !== "undefined") {
       const savedPlan = window.localStorage.getItem("plan_id") as PlanId | null;
       if (savedPlan) setCurrentPlan(savedPlan);
 
       const savedPrefs = window.localStorage.getItem("hasCompletedPreferences");
-      if (savedPrefs === "1") {
-        setHasCompletedPreferences(true);
-      }
+      if (savedPrefs === "1") setHasCompletedPreferences(true);
     }
 
     async function init() {
       if (!user) return;
 
       await fetchCredits();
-      loadGallery();
+      await loadGallery();
 
       // Revisar si ya tiene un modelo entrenado
       try {
@@ -195,7 +184,7 @@ export default function DashboardPage() {
           .eq("status", "completed")
           .order("created_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (model?.lora_url) {
           setWeightsUrl(model.lora_url);
@@ -215,127 +204,55 @@ export default function DashboardPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [user]);
+  }, [user, fetchCredits, loadGallery]);
 
   // --- Subida de fotos ---
-  const handleFileUpload: React.ChangeEventHandler<HTMLInputElement> =
-    useCallback(
-      async (e) => {
-        if (!e.target.files || e.target.files.length === 0) return;
-        if (!user) {
-          pushToast("Inicia sesión antes de subir fotos.", "warning");
-          return;
-        }
-
-        setIsUploading(true);
-        setUploadProgress("Subiendo fotos...");
-
-        try {
-          const files = Array.from(e.target.files);
-          const newUrls: string[] = [];
-
-          for (const file of files) {
-            const filePath = `training/${user.id}/${Date.now()}-${file.name}`;
-
-            const { error } = await supabase.storage
-              .from("training_files")
-              .upload(filePath, file, { contentType: file.type });
-
-            if (error) throw error;
-
-            const { data: publicData } = supabase.storage
-              .from("training_files")
-              .getPublicUrl(filePath);
-
-            newUrls.push(publicData.publicUrl);
-          }
-
-          setUploadedImages((prev) => [...prev, ...newUrls]);
-          setUploadProgress("✅ Fotos listas");
-          pushToast(
-            "Fotos cargadas correctamente. Ya podés entrenar.",
-            "success"
-          );
-        } catch (error: any) {
-          pushToast("Error al subir fotos. Inténtalo de nuevo.", "error");
-          console.error(error);
-        } finally {
-          setIsUploading(false);
-        }
-      },
-      [user]
-    );
-
-  // --- Iniciar entrenamiento ---
-  const startTraining = async () => {
-    if (uploadedImages.length < 5) {
-      pushToast(
-        "Debes subir al menos 5 fotos para entrenar tu modelo.",
-        "warning"
-      );
-      return;
-    }
-
-    setStatus("starting");
-
-    try {
-      pushToast("Iniciando entrenamiento de tu modelo...", "info");
-
-      const res = await fetch("/api/train", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images: uploadedImages }),
-      });
-
-      const data = await res.json();
-      setTrainingId(data.id);
-      setStatus(data.status);
-    } catch (error: any) {
-      pushToast("Error al iniciar el entrenamiento.", "error");
-      console.error(error);
-      setStatus("idle");
-    }
-  };
-
-  // --- Chequear estado ---
-  const checkStatus = async () => {
-    if (!trainingId) return;
-
-    try {
-      const res = await fetch("/api/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trainingId }),
-      });
-
-      const data = await res.json();
-      setStatus(data.status);
-
-      if (data.status === "completed" && data.weights) {
-        setWeightsUrl(data.weights);
-
-        if (data.trigger) {
-          localStorage.setItem("trigger_word", data.trigger);
-        }
-
-        setMode("dashboard");
-        pushToast(
-          "Tu modelo Flux está listo. ¡Ya puedes generar fotos! ✨",
-          "success"
-        );
+  const handleFileUpload: React.ChangeEventHandler<HTMLInputElement> = useCallback(
+    async (e) => {
+      if (!e.target.files || e.target.files.length === 0) return;
+      if (!user) {
+        pushToast("Inicia sesión antes de subir fotos.", "warning");
+        return;
       }
-    } catch (error) {
-      console.error("Error checkStatus:", error);
-      pushToast(
-        "No se pudo actualizar el estado del entrenamiento.",
-        "error"
-      );
-    }
-  };
+
+      setIsUploading(true);
+      setUploadProgress("Subiendo fotos...");
+
+      try {
+        const files = Array.from(e.target.files);
+        const newUrls: string[] = [];
+
+        for (const file of files) {
+          const filePath = `training/${user.id}/${Date.now()}-${file.name}`;
+
+          const { error } = await supabase.storage
+            .from("training_files")
+            .upload(filePath, file, { contentType: file.type });
+
+          if (error) throw error;
+
+          const { data: publicData } = supabase.storage
+            .from("training_files")
+            .getPublicUrl(filePath);
+
+          newUrls.push(publicData.publicUrl);
+        }
+
+        setUploadedImages((prev) => [...prev, ...newUrls]);
+        setUploadProgress("✅ Fotos listas");
+        pushToast("Fotos cargadas correctamente. Ya podés entrenar.", "success");
+      } catch (error: any) {
+        pushToast("Error al subir fotos. Inténtalo de nuevo.", "error");
+        console.error(error);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [user, pushToast]
+  );
 
   // --- Comprar plan (MercadoPago Checkout Pro) ---
   const buyPlanMP = async (plan: Plan) => {
-    setSelectedPlan(plan.id as "basic" | "standard" | "executive");
     pushToast(`Procesando compra de ${plan.name}...`, "info");
 
     try {
@@ -356,7 +273,6 @@ export default function DashboardPage() {
         return;
       }
 
-      // Redirect a MercadoPago
       window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error(err);
@@ -364,18 +280,123 @@ export default function DashboardPage() {
     }
   };
 
-  // ✅ Abrir modal métodos (desde “Comprar créditos”)
-  const openPaymentMethods = (plan?: Plan) => {
-    if (plan) setPendingPlan(plan);
-    setShowPayModal(true);
+  // --- Iniciar entrenamiento ---
+  const startTraining = async () => {
+    setTrainingBlockedReason(null);
+
+    if (uploadedImages.length < 6) {
+      pushToast("Debes subir al menos 6 fotos para entrenar tu modelo.", "warning");
+      return;
+    }
+
+    // ✅ chequeo créditos (usa el valor real recién leído)
+    const c = await fetchCredits();
+    if (c < TRAIN_COST) {
+      pushToast(
+        "Créditos insuficientes para entrenar tu modelo. Comprá un pack para continuar.",
+        "warning"
+      );
+      openPayModal();
+      return;
+    }
+
+    setStatus("starting");
+
+    try {
+      pushToast("Iniciando entrenamiento de tu modelo...", "info");
+
+      const res = await fetch("/api/train", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: uploadedImages }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      // 402: créditos insuficientes (server-side)
+      if (res.status === 402) {
+        pushToast("Créditos insuficientes. Comprá un pack para entrenar.", "warning");
+        openPayModal();
+        setStatus("idle");
+        return;
+      }
+
+      // 503: replicate bloqueado / caído
+      if (res.status === 503) {
+        setTrainingBlockedReason(
+          data?.blockedReason ||
+            "En estos momentos no podemos entrenar tu modelo. En instantes será resuelto."
+        );
+        pushToast("⚠️ Entrenamiento no disponible momentáneamente.", "warning");
+        setStatus("idle");
+        return;
+      }
+
+      if (!res.ok) {
+        const msg = String(data?.message || data?.error || "No se pudo iniciar el entrenamiento.");
+        pushToast(msg, "error");
+        setStatus("idle");
+        return;
+      }
+
+      if (!data?.id) {
+        pushToast("Respuesta inválida del entrenamiento. Inténtalo de nuevo.", "error");
+        setStatus("idle");
+        return;
+      }
+
+      setTrainingId(String(data.id));
+      setStatus(String(data.status || "starting"));
+
+      // si el server devolvió remainingCredits, actualizamos
+      if (typeof data?.remainingCredits === "number") {
+        setCredits(Number(data.remainingCredits));
+      } else {
+        // sino refrescamos
+        fetchCredits();
+      }
+    } catch (error: any) {
+      pushToast("Error al iniciar el entrenamiento.", "error");
+      console.error(error);
+      setStatus("idle");
+    }
+  };
+
+  // --- Chequear estado ---
+  const checkStatus = async () => {
+    if (!trainingId) return;
+
+    try {
+      const res = await fetch("/api/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingId }),
+      });
+
+      const data = await res.json();
+      setStatus(String(data.status || "processing"));
+
+      if (data.status === "completed" && data.weights) {
+        setWeightsUrl(String(data.weights));
+
+        if (data.trigger) localStorage.setItem("trigger_word", String(data.trigger));
+
+        setMode("dashboard");
+        pushToast("Tu modelo Flux está listo. ¡Ya puedes generar fotos! ✨", "success");
+      }
+    } catch (error) {
+      console.error("Error checkStatus:", error);
+      pushToast("No se pudo actualizar el estado del entrenamiento.", "error");
+    }
   };
 
   // --- Generar foto ---
   const generatePhotos = async () => {
-    if (credits <= 0) {
-      // no hay créditos -> abrir modal métodos (sin plan preseleccionado)
-      setPendingPlan(null);
-      setShowPayModal(true);
+    // ✅ bloquea si no hay créditos
+    const c = await fetchCredits();
+    if (c <= 0) {
+      pushToast("No tenés créditos. Comprá un pack para seguir generando.", "warning");
+      openPayModal();
       return;
     }
 
@@ -413,10 +434,14 @@ export default function DashboardPage() {
 
       if (data.imageUrl) {
         setGeneratedImages((prev) => [data.imageUrl, ...prev]);
-        setCredits(data.remainingCredits);
+        if (typeof data.remainingCredits === "number") {
+          setCredits(Number(data.remainingCredits));
+        } else {
+          fetchCredits();
+        }
         pushToast("Foto generada correctamente ✅", "success");
       } else if (data.error) {
-        pushToast(data.error, "error");
+        pushToast(String(data.error), "error");
       }
     } catch (e) {
       console.error(e);
@@ -456,9 +481,7 @@ export default function DashboardPage() {
     setMode("upload");
   };
 
-  if (!isLoaded) {
-    return <div className="min-h-screen bg-white" aria-hidden />;
-  }
+  if (!isLoaded) return <div className="min-h-screen bg-white" aria-hidden />;
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-b from-gray-50 via-white to-orange-50 text-gray-900 selection:bg-orange-100 selection:text-orange-900">
@@ -484,6 +507,16 @@ export default function DashboardPage() {
                 trainingId={trainingId}
                 status={status}
                 onCheckStatus={checkStatus}
+                credits={credits}
+                trainCost={TRAIN_COST}
+                onNeedCredits={() => {
+                  openPayModal();
+                  pushToast(
+                    "Créditos insuficientes. Elegí un método de pago para continuar.",
+                    "warning"
+                  );
+                }}
+                trainingBlockedReason={trainingBlockedReason}
               />
             ) : (
               <DashboardView
@@ -517,55 +550,30 @@ export default function DashboardPage() {
                 planId={currentPlan}
                 onFinishSetup={handleFinishSetup}
                 notify={pushToast}
-                // ✅ ahora solo abre el modal de métodos
-                onBuyCredits={() => openPaymentMethods()}
+                onBuyCredits={() => openPayModal()}
               />
             )}
           </SignedIn>
         </div>
       </main>
 
-      {/* ✅ Modal métodos de pago */}
-      <PayModal
-        isOpen={showPayModal}
-        onClose={() => {
-          setShowPayModal(false);
-          setPendingPlan(null);
-        }}
-        onSelectMethod={(method: PayMethod) => {
-          // Si no había plan preseleccionado (ej: entró por "Comprar créditos"),
-          // podés llevarlo a la sección pricing del dashboard o mostrar otro modal de planes.
-          if (!pendingPlan) {
-            if (method === "mercadopago") {
-              pushToast("Elegí un plan para continuar con MercadoPago.", "info");
-            } else if (method === "payu") {
-              pushToast("Elegí un plan para continuar con PayU.", "info");
-            } else {
-              pushToast("Elegí un plan para continuar con USDT.", "info");
-            }
-            setShowPayModal(false);
-            return;
-          }
-
-          if (method === "mercadopago") {
-            setShowPayModal(false);
-            buyPlanMP(pendingPlan);
-            return;
-          }
-
-          if (method === "payu") {
-            pushToast("PayU: lo conectamos en el próximo paso.", "info");
-            // luego: buyPlanPayU(pendingPlan)
-            return;
-          }
-
-          if (method === "usdt") {
-            pushToast("USDT: lo conectamos en el próximo paso.", "info");
-            // luego: flujo USDT
-            return;
-          }
-        }}
-      />
+        {/* ✅ Modal métodos de pago (usa PayModal que me pasaste: onSelectMethod) */}
+        <PayModal
+            isOpen={showPayModal}
+            onClose={() => setShowPayModal(false)}
+            onSelect={({ plan, method }) => {
+                if (method === "mercadopago") {
+                setShowPayModal(false);
+                buyPlanMP(plan);
+                return;
+                }
+                if (method === "payu") {
+                pushToast("PayU: lo conectamos en el próximo paso.", "info");
+                return;
+                }
+                pushToast("USDT: lo conectamos en el próximo paso.", "info");
+            }}
+        />
 
       <ToastStack toasts={toasts} onClose={closeToast} />
     </div>
