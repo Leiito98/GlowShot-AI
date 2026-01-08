@@ -11,13 +11,13 @@ type HomeViewProps = {
 type UseCaseKey = "linkedin" | "dating" | "social" | "personalBrand";
 
 const USE_CASES: { key: UseCaseKey; label: string }[] = [
-  { key: "linkedin",      label: "LinkedIn y CV" },
-  { key: "dating",        label: "Citas (Tinder, Bumble)" },
-  { key: "social",        label: "Redes sociales" },
+  { key: "linkedin", label: "LinkedIn y CV" },
+  { key: "dating", label: "Citas (Tinder, Bumble)" },
+  { key: "social", label: "Redes sociales" },
   { key: "personalBrand", label: "Marca personal" },
 ];
 
-// 👇 EJEMPLOS DE FOTOS (poné acá tus archivos reales en /public/examples)
+// 👇 Tus ejemplos (asegurate que existan en /public/examples)
 const EXAMPLE_IMAGES = [
   { src: "/examples/copy1.png", alt: "Retrato profesional 1" },
   { src: "/examples/copy2.png", alt: "Retrato profesional 2" },
@@ -116,8 +116,6 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
     <div className="max-w-6xl mx-auto px-6 pt-10 pb-16 space-y-16">
       {/* HERO */}
       <section className="grid gap-10 md:grid-cols-[1.1fr_0.9fr] items-center">
-        {/* ... TODO IGUAL QUE ANTES ... */}
-        {/* (no toco nada de arriba para no marearte) */}
         <div>
           <p className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[11px] font-semibold uppercase tracking-wide text-orange-700 mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
@@ -145,9 +143,13 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
               <span className="ml-2">→</span>
             </button>
 
-            <button className="text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer">
+            {/* Hash link a ejemplos */}
+            <a
+              href="#examples"
+              className="text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer"
+            >
               Ver ejemplos de fotos
-            </button>
+            </a>
           </div>
 
           <p className="text-[11px] md:text-xs text-gray-400">
@@ -159,7 +161,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
               <div className="w-7 h-7 rounded-full border border-white overflow-hidden">
                 <Image
                   src="/avatars/creator1.png"
-                  alt="Usuario GlowShot 1"
+                  alt="Usuario AuraShot 1"
                   width={32}
                   height={32}
                   className="w-full h-full object-cover"
@@ -169,7 +171,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
               <div className="w-7 h-7 rounded-full border border-white overflow-hidden">
                 <Image
                   src="/avatars/creator2.png"
-                  alt="Usuario GlowShot 2"
+                  alt="Usuario AuraShot 2"
                   width={32}
                   height={32}
                   className="w-full h-full object-cover"
@@ -179,7 +181,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
               <div className="w-7 h-7 rounded-full border border-white overflow-hidden">
                 <Image
                   src="/avatars/creator3.png"
-                  alt="Usuario GlowShot 3"
+                  alt="Usuario AuraShot 3"
                   width={32}
                   height={32}
                   className="w-full h-full object-cover"
@@ -192,7 +194,6 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
               Latinoamérica.
             </span>
           </div>
-
         </div>
 
         {/* Mockup derecha */}
@@ -200,48 +201,47 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
           <div className="absolute -top-6 -right-4 w-32 h-32 bg-orange-100 rounded-full blur-3xl opacity-70 -z-10" />
 
           <div className="rounded-3xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.12)] border border-orange-50 p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl overflow-hidden border border-gray-100">
-              <Image
-                src="/hero-examples/hero1.png"
-                alt="Retrato profesional ejemplo 1"
-                width={500}
-                height={700}
-                className="object-cover w-full h-full"
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl overflow-hidden border border-gray-100">
+                <Image
+                  src="/hero-examples/hero1.png"
+                  alt="Retrato profesional ejemplo 1"
+                  width={500}
+                  height={700}
+                  className="object-cover w-full h-full"
+                />
+              </div>
 
-            <div className="rounded-2xl overflow-hidden border border-gray-100">
-              <Image
-                src="/hero-examples/hero2.png"
-                alt="Retrato profesional ejemplo 2"
-                width={500}
-                height={700}
-                className="object-cover w-full h-full"
-              />
-            </div>
+              <div className="rounded-2xl overflow-hidden border border-gray-100">
+                <Image
+                  src="/hero-examples/hero2.png"
+                  alt="Retrato profesional ejemplo 2"
+                  width={500}
+                  height={700}
+                  className="object-cover w-full h-full"
+                />
+              </div>
 
-            <div className="rounded-2xl overflow-hidden border border-gray-100">
-              <Image
-                src="/hero-examples/hero3.png"
-                alt="Retrato profesional ejemplo 3"
-                width={500}
-                height={700}
-                className="object-cover w-full h-full"
-              />
-            </div>
+              <div className="rounded-2xl overflow-hidden border border-gray-100">
+                <Image
+                  src="/hero-examples/hero3.png"
+                  alt="Retrato profesional ejemplo 3"
+                  width={500}
+                  height={700}
+                  className="object-cover w-full h-full"
+                />
+              </div>
 
-            <div className="rounded-2xl overflow-hidden border border-gray-100">
-              <Image
-                src="/hero-examples/hero4.png"
-                alt="Retrato profesional ejemplo 4"
-                width={500}
-                height={700}
-                className="object-cover w-full h-full"
-              />
+              <div className="rounded-2xl overflow-hidden border border-gray-100">
+                <Image
+                  src="/hero-examples/hero4.png"
+                  alt="Retrato profesional ejemplo 4"
+                  width={500}
+                  height={700}
+                  className="object-cover w-full h-full"
+                />
+              </div>
             </div>
-          </div>
-
 
             <div className="mt-4 rounded-2xl bg-gray-50 border border-dashed border-gray-200 p-3 text-[11px] text-gray-600">
               <div className="flex items-center justify-between mb-1">
@@ -260,7 +260,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section className="space-y-6">
+      <section id="how-it-works" className="space-y-6 scroll-mt-24">
         <div className="text-center max-w-2xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">
             Consigue tus fotos en{" "}
@@ -325,14 +325,12 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
         </div>
       </section>
 
-
-      <section className="space-y-6">
-        {/* ... */}
-      </section>
-
       {/* EJEMPLOS + USOS */}
-      <section className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] items-start">
-        {/* “Ejemplos” mock con FOTOS REALES */}
+      <section
+        id="examples"
+        className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] items-start scroll-mt-24"
+      >
+        {/* Ejemplos estilo Aragon */}
         <div>
           <h2 className="text-lg font-semibold mb-3">
             Ejemplos de retratos que podés generar
@@ -342,20 +340,39 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
             propio rostro con estos estilos.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {EXAMPLE_IMAGES.map((img, idx) => (
               <div
                 key={idx}
-                className="relative overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-orange-50 via-white to-gray-100 aspect-[3/4]"
+                className="
+                  relative w-full overflow-hidden 
+                  rounded-3xl border border-gray-100 bg-gray-100 
+                  shadow-[0_18px_40px_rgba(0,0,0,0.12)]
+                  aspect-[4/5]
+                "
               >
                 <Image
                   src={img.src}
                   alt={img.alt}
                   fill
                   className="object-cover"
-                  sizes="(min-width: 768px) 33vw, 50vw"
-                  priority={idx < 2}
+                  sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                  priority={idx < 3}
                 />
+
+                {/* Badge tipo watermark abajo a la derecha con tu logo */}
+                <div className="absolute bottom-3 right-3">
+                  <div className="w-7 h-7 rounded-xl bg-white shadow-md border border-gray-200 flex items-center justify-center">
+                    <div className="relative w-7 h-7">
+                      <Image
+                        src="/logo-img.png"
+                        alt="AuraShot logo"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -377,7 +394,10 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
                     key={uc.key}
                     type="button"
                     onClick={() => setActiveUseCase(uc.key)}
-                    whileHover={{ y: -1, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+                    whileHover={{
+                      y: -1,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
                     whileTap={{ scale: 0.97 }}
                     className={`px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition ${
                       isActive
@@ -397,7 +417,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
             </p>
           </div>
 
-          {/* Opiniones dinámicas con animación */}
+          {/* Opiniones dinámicas con animación (esto NO es la sección #reviews; es el box dinámico) */}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeUseCase}
@@ -437,10 +457,20 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
           </AnimatePresence>
 
           <div className="text-[11px] text-gray-400">
-            GlowShot no usa tus fotos para entrenar modelos públicos. Tu modelo
+            AuraShot no usa tus fotos para entrenar modelos públicos. Tu modelo
             es privado y solo se usa para generar tus retratos.
           </div>
         </div>
+      </section>
+
+      {/* PRICING (placeholder mínimo, lo reemplazamos con tu sección real en page.tsx) */}
+      <section id="pricing" className="scroll-mt-24">
+        {/* Si tu pricing está en otro componente, lo movemos acá */}
+      </section>
+
+      {/* REVIEWS (placeholder mínimo, lo reemplazamos con tu sección real en page.tsx) */}
+      <section id="reviews" className="scroll-mt-24">
+        {/* Si tu bloque de opiniones global está en otro componente, lo movemos acá */}
       </section>
     </div>
   );

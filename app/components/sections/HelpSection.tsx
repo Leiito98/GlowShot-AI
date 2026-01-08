@@ -10,7 +10,7 @@ export function HelpSection() {
     >
       <div className="rounded-3xl bg-white/90 border border-gray-100 shadow-[0_18px_60px_rgba(0,0,0,0.06)] px-6 py-10">
         <h2 className="text-2xl md:text-3xl font-bold mb-3">
-          ¿Necesitás ayuda con GlowShot?
+          ¿Necesitás ayuda con AuraShot?
         </h2>
 
         <p className="text-gray-600 mb-5 max-w-2xl mx-auto text-sm md:text-base">

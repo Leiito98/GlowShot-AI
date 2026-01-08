@@ -28,7 +28,7 @@ export function UploadView({
       {/* Volver al dashboard */}
       <button
         onClick={onBack}
-        className="mb-6 text-sm text-gray-500 hover:text-black"
+        className="mb-6 text-sm text-gray-500 hover:text-black cursor-pointer"
       >
         ← Volver al dashboard
       </button>

@@ -24,7 +24,7 @@ export function AuthChoiceModal({ isOpen, onClose }: AuthChoiceModalProps) {
           Crea tu cuenta para continuar
         </h2>
         <p className="text-sm text-gray-500 mb-6 text-center">
-          Para comprar un paquete necesitás una cuenta en GlowShot.
+          Para comprar un paquete necesitás una cuenta en AuraShot.
         </p>
 
         <div className="space-y-3">

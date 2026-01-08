@@ -51,7 +51,7 @@ export default function Footer() {
         <div className="max-w-6xl mx-auto px-6 py-6 text-sm flex flex-col md:flex-row justify-between gap-2">
   
           <span className="text-gray-400">
-            Copyright © 2025 GlowShot AI — Todos los derechos reservados.
+            Copyright © 2025 AuraShot AI — Todos los derechos reservados.
           </span>
   
           <span className="text-gray-300">

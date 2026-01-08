@@ -155,7 +155,7 @@ export function DashboardView({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
           <button
             onClick={() => setGender("man")}
-            className={`py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
+            className={`cursor-pointer py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
               gender === "man"
                 ? "bg-orange-100 text-orange-700 border-orange-400"
                 : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -165,7 +165,7 @@ export function DashboardView({
           </button>
           <button
             onClick={() => setGender("woman")}
-            className={`py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
+            className={`cursor-pointer py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
               gender === "woman"
                 ? "bg-orange-100 text-orange-700 border-orange-400"
                 : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -175,7 +175,7 @@ export function DashboardView({
           </button>
           <button
             onClick={() => setGender("non_binary")}
-            className={`py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
+            className={`cursor-pointer py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
               gender === "non_binary"
                 ? "bg-orange-100 text-orange-700 border-orange-400"
                 : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -202,7 +202,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setAgeRange(opt.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border ${
+              className={`cursor-pointer px-4 py-2 rounded-full text-sm font-medium border ${
                 ageRange === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -230,7 +230,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setHairColor(opt.id)}
-              className={`px-4 py-2 rounded-2xl text-sm font-medium border text-left ${
+              className={`cursor-pointer px-4 py-2 rounded-2xl text-sm font-medium border text-left ${
                 hairColor === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -254,7 +254,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setHairLength(opt.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border ${
+              className={`cursor-pointer px-4 py-2 rounded-full text-sm font-medium border ${
                 hairLength === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -278,7 +278,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setHairStyle(opt.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border ${
+              className={`cursor-pointer px-4 py-2 rounded-full text-sm font-medium border ${
                 hairStyle === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -302,7 +302,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setEthnicity(opt.id)}
-              className={`px-4 py-2 rounded-2xl text-sm font-medium border text-left ${
+              className={`cursor-pointer px-4 py-2 rounded-2xl text-sm font-medium border text-left ${
                 ethnicity === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -326,7 +326,7 @@ export function DashboardView({
             <button
               key={opt.id}
               onClick={() => setBodyType(opt.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border ${
+              className={`cursor-pointer px-4 py-2 rounded-full text-sm font-medium border ${
                 bodyType === opt.id
                   ? "bg-orange-100 text-orange-800 border-orange-400"
                   : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -362,9 +362,6 @@ export function DashboardView({
       <div className="max-w-4xl mx-auto px-6 pt-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">Configurá tu perfil ✨</h2>
-          <button onClick={onBack} className="text-sm text-gray-500">
-            Volver
-          </button>
         </div>
 
         <div className="bg-white rounded-3xl shadow p-8 md:p-12 max-w-3xl mx-auto">
@@ -375,7 +372,7 @@ export function DashboardView({
               className={`text-sm ${
                 setupStep === 0
                   ? "text-gray-300 cursor-default"
-                  : "text-gray-500 hover:text-gray-800"
+                  : "text-gray-500 hover:text-gray-800 cursor-pointer"
               }`}
             >
               ← Volver
@@ -397,7 +394,7 @@ export function DashboardView({
           <div className="flex justify-end mt-8">
             <button
               onClick={goNext}
-              className="bg-[#ff5a1f] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#e04f1b] transition"
+              className="bg-[#ff5a1f] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#e04f1b] transition cursor-pointer"
             >
               {isLastStep ? "Continuar a subir fotos" : "Continuar"}
             </button>

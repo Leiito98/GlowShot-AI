@@ -1,13 +1,14 @@
 // app/dashboard/page.tsx
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import { useState, useEffect, useCallback } from "react";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/app/lib/supabase";
 import { getPromptsForPack } from "@/lib/prompts";
-import PaddleBootstrap from "@/app/components/payments/PaddleBootstrap";
 
 import { HeaderBar } from "@/app/components/layout/HeaderBar";
 import { UploadView } from "@/app/components/views/UploadView";
@@ -35,6 +36,9 @@ import {
 type DashboardMode = "upload" | "dashboard";
 // Solo para el Header (coincide con el type View del HeaderBar)
 type HeaderView = "home" | "upload" | "dashboard" | "mypictures";
+
+// ✅ Debe coincidir con tu PayModal nuevo (onSelectMethod)
+type PayMethod = "mercadopago" | "payu" | "usdt";
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -77,13 +81,15 @@ export default function DashboardPage() {
 
   // Preferencias de estudio
   const [gender, setGender] = useState<UXGender>("woman");
-  const [selectedStyle, setSelectedStyle] =
-    useState<string>("Professional");
+  const [selectedStyle, setSelectedStyle] = useState<string>("Professional");
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   // Esta galería no se usa acá, pero la dejamos por si luego la necesitás
   const [galleryImages, setGalleryImages] = useState<any[]>([]);
+
+  // ✅ modal métodos
   const [showPayModal, setShowPayModal] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
 
   const [ageRange, setAgeRange] = useState<AgeRange>("25_29");
   const [hairColor, setHairColor] = useState<HairColor>("black");
@@ -105,6 +111,21 @@ export default function DashboardPage() {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
   };
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const paid = searchParams.get("paid");
+    if (paid === "1") {
+      pushToast("✅ Compra exitosa. En breve se acreditan tus créditos.", "success");
+      // refrescamos créditos por si el webhook ya acreditó
+      fetchCredits();
+      // opcional: limpiar query
+      router.replace("/dashboard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  
 
   const closeToast = (id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -142,14 +163,10 @@ export default function DashboardPage() {
 
     // Cargar plan y preferencias desde localStorage
     if (typeof window !== "undefined") {
-      const savedPlan = window.localStorage.getItem("plan_id") as
-        | PlanId
-        | null;
+      const savedPlan = window.localStorage.getItem("plan_id") as PlanId | null;
       if (savedPlan) setCurrentPlan(savedPlan);
 
-      const savedPrefs = window.localStorage.getItem(
-        "hasCompletedPreferences"
-      );
+      const savedPrefs = window.localStorage.getItem("hasCompletedPreferences");
       if (savedPrefs === "1") {
         setHasCompletedPreferences(true);
       }
@@ -308,58 +325,48 @@ export default function DashboardPage() {
     }
   };
 
-  // --- Comprar plan ---
-  const buyPlan = async (plan: Plan) => {
+  // --- Comprar plan (MercadoPago Checkout Pro) ---
+  const buyPlanMP = async (plan: Plan) => {
     setSelectedPlan(plan.id as "basic" | "standard" | "executive");
     pushToast(`Procesando compra de ${plan.name}...`, "info");
 
     try {
-      const res = await fetch("/api/paddle/create-checkout", {
+      const res = await fetch("/api/mp/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planId: plan.id,
-        }),
+        body: JSON.stringify({ planId: plan.id }),
       });
 
       const data = await res.json();
 
-      if (!res.ok || !data?.transactionId) {
-        console.error("Error create-checkout:", data);
+      if (!res.ok || !data?.checkoutUrl) {
+        console.error("Error mp create-checkout:", data);
         pushToast(
-          data?.error || "No se pudo iniciar el pago con Paddle.",
+          data?.error || "No se pudo iniciar el pago con MercadoPago.",
           "error"
         );
         return;
       }
 
-      // @ts-ignore
-      if (window.Paddle) {
-        // @ts-ignore
-        window.Paddle.Checkout.open({
-          transactionId: data.transactionId,
-          settings: {
-            displayMode: "overlay",
-            theme: "light",
-            locale: "es",
-          },
-        });
-      } else {
-        console.error("Paddle JS no está disponible en window.");
-        pushToast(
-          "No se pudo cargar el checkout de Paddle. Recarga la página e inténtalo de nuevo.",
-          "error"
-        );
-      }
+      // Redirect a MercadoPago
+      window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error(err);
-      pushToast("Error iniciando el pago con Paddle.", "error");
+      pushToast("Error iniciando el pago con MercadoPago.", "error");
     }
+  };
+
+  // ✅ Abrir modal métodos (desde “Comprar créditos”)
+  const openPaymentMethods = (plan?: Plan) => {
+    if (plan) setPendingPlan(plan);
+    setShowPayModal(true);
   };
 
   // --- Generar foto ---
   const generatePhotos = async () => {
     if (credits <= 0) {
+      // no hay créditos -> abrir modal métodos (sin plan preseleccionado)
+      setPendingPlan(null);
       setShowPayModal(true);
       return;
     }
@@ -405,10 +412,7 @@ export default function DashboardPage() {
       }
     } catch (e) {
       console.error(e);
-      pushToast(
-        "Error al generar la foto. Inténtalo nuevamente.",
-        "error"
-      );
+      pushToast("Error al generar la foto. Inténtalo nuevamente.", "error");
     }
 
     setIsGeneratingBatch(false);
@@ -450,10 +454,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-b from-gray-50 via-white to-orange-50 text-gray-900 selection:bg-orange-100 selection:text-orange-900">
-      <PaddleBootstrap />
-      <HeaderBar
-        credits={credits}
-      />
+      <HeaderBar credits={credits} />
 
       <main className="pb-20">
         <div className="max-w-6xl mx-auto px-4">
@@ -508,17 +509,54 @@ export default function DashboardPage() {
                 planId={currentPlan}
                 onFinishSetup={handleFinishSetup}
                 notify={pushToast}
-                onBuyCredits={() => setShowPayModal(true)}
+                // ✅ ahora solo abre el modal de métodos
+                onBuyCredits={() => openPaymentMethods()}
               />
             )}
           </SignedIn>
         </div>
       </main>
 
+      {/* ✅ Modal métodos de pago */}
       <PayModal
         isOpen={showPayModal}
-        onClose={() => setShowPayModal(false)}
-        onSelectPlan={buyPlan}
+        onClose={() => {
+          setShowPayModal(false);
+          setPendingPlan(null);
+        }}
+        onSelectMethod={(method: PayMethod) => {
+          // Si no había plan preseleccionado (ej: entró por "Comprar créditos"),
+          // podés llevarlo a la sección pricing del dashboard o mostrar otro modal de planes.
+          if (!pendingPlan) {
+            if (method === "mercadopago") {
+              pushToast("Elegí un plan para continuar con MercadoPago.", "info");
+            } else if (method === "payu") {
+              pushToast("Elegí un plan para continuar con PayU.", "info");
+            } else {
+              pushToast("Elegí un plan para continuar con USDT.", "info");
+            }
+            setShowPayModal(false);
+            return;
+          }
+
+          if (method === "mercadopago") {
+            setShowPayModal(false);
+            buyPlanMP(pendingPlan);
+            return;
+          }
+
+          if (method === "payu") {
+            pushToast("PayU: lo conectamos en el próximo paso.", "info");
+            // luego: buyPlanPayU(pendingPlan)
+            return;
+          }
+
+          if (method === "usdt") {
+            pushToast("USDT: lo conectamos en el próximo paso.", "info");
+            // luego: flujo USDT
+            return;
+          }
+        }}
       />
 
       <ToastStack toasts={toasts} onClose={closeToast} />

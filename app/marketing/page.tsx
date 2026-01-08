@@ -8,7 +8,7 @@ export default function MarketingHome() {
     <main className="min-h-screen bg-gradient-to-b from-orange-50 to-white text-gray-900">
       <header className="w-full max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
         <span className="text-xl font-bold tracking-tight">
-          GlowShot<span className="text-orange-500">.ai</span>
+          AuraShot<span className="text-orange-500">.ai</span>
         </span>
         <nav className="flex items-center gap-4 text-sm text-gray-600">
           <Link href="/marketing/terminos" className="hover:text-gray-900">
@@ -46,7 +46,7 @@ export default function MarketingHome() {
               Empezar ahora
             </Link>
             <a
-              href="mailto:soporte@glowshot.ai"
+              href="mailto:soporte@AuraShot.ai"
               className="inline-flex items-center justify-center px-6 py-3 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Hablar con soporte
@@ -66,7 +66,7 @@ export default function MarketingHome() {
       <footer className="w-full border-t border-gray-100 mt-12">
         <div className="max-w-5xl mx-auto px-6 py-6 text-xs text-gray-500 flex flex-wrap justify-between gap-2">
           <span>
-            © {new Date().getFullYear()} GlowShot AI. Todos los derechos
+            © {new Date().getFullYear()} AuraShot AI. Todos los derechos
             reservados.
           </span>
           <div className="flex gap-4">

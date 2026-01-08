@@ -4,12 +4,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
 type HeaderBarProps = {
   credits?: number;
@@ -20,10 +16,26 @@ export function HeaderBar({ credits = 0 }: HeaderBarProps) {
   const isDashboard = pathname.startsWith("/dashboard");
   const isMyPhotos = pathname.startsWith("/my-photos");
 
-  const scrollToId = (id: string) => {
-    if (typeof document === "undefined") return;
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Para resaltar el link activo por hash (solo en landing)
+  const [hash, setHash] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const update = () => setHash(window.location.hash || "");
+    update();
+
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+
+  const isLanding = pathname === "/";
+
+  const landingLinkClass = (targetHash: string) => {
+    const active = isLanding && hash === targetHash;
+    return active
+      ? "text-[#ff5a1f]"
+      : "hover:text-[#ff5a1f] transition-colors cursor-pointer";
   };
 
   return (
@@ -32,10 +44,10 @@ export function HeaderBar({ credits = 0 }: HeaderBarProps) {
       <div className="flex items-center gap-6">
         {/* Logo: siempre lleva al home */}
         <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="w-15 h-15 relative">
+          <div className="w-10 h-10 relative">
             <Image
               src="/logo.png"
-              alt="GlowShot"
+              alt="AuraShot"
               fill
               sizes="36px"
               className="rounded-full object-cover"
@@ -43,37 +55,25 @@ export function HeaderBar({ credits = 0 }: HeaderBarProps) {
             />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-gray-900">
-            GlowShot
+            AuraShot
           </h1>
         </Link>
 
-        {/* Nav DESLOGUEADO: secciones de landing */}
+        {/* Nav DESLOGUEADO: secciones de landing con hash */}
         <SignedOut>
           <nav className="hidden md:flex gap-4 text-sm font-medium text-gray-600">
-            <button
-              onClick={() => scrollToId("how-it-works")}
-              className="hover:text-[#ff5a1f] transition-colors cursor-pointer"
-            >
+            <a href="/#how-it-works" className={landingLinkClass("#how-it-works")}>
               Cómo funciona
-            </button>
-            <button
-              onClick={() => scrollToId("examples")}
-              className="hover:text-[#ff5a1f] transition-colors cursor-pointer"
-            >
+            </a>
+            <a href="/#examples" className={landingLinkClass("#examples")}>
               Ejemplos
-            </button>
-            <button
-              onClick={() => scrollToId("pricing")}
-              className="hover:text-[#ff5a1f] transition-colors cursor-pointer"
-            >
+            </a>
+            <a href="/#pricing" className={landingLinkClass("#pricing")}>
               Precios
-            </button>
-            <button
-              onClick={() => scrollToId("reviews")}
-              className="hover:text-[#ff5a1f] transition-colors cursor-pointer"
-            >
+            </a>
+            <a href="/#examples" className={landingLinkClass("#examples")}>
               Opiniones
-            </button>
+            </a>
           </nav>
         </SignedOut>
 

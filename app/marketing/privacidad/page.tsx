@@ -13,22 +13,22 @@ export default function PrivacidadPage() {
             ← Volver al inicio
           </Link>
           <span className="text-lg font-semibold">
-            GlowShot<span className="text-orange-500">.ai</span>
+            AuraShot<span className="text-orange-500">.ai</span>
           </span>
         </header>
 
         <article className="prose prose-sm sm:prose lg:prose-lg max-w-none">
-          <h1>Política de Privacidad de GlowShot AI</h1>
+          <h1>Política de Privacidad de AuraShot AI</h1>
           <p>
             <strong>Última actualización:</strong> 1 de enero de 2026
           </p>
 
           <pre className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
-{`# Política de Privacidad de GlowShot AI
+{`# Política de Privacidad de AuraShot AI
 
 Última actualización: 1 de enero de 2026
 
-En GlowShot AI respetamos tu privacidad y nos comprometemos a proteger tus datos personales.  
+En AuraShot AI respetamos tu privacidad y nos comprometemos a proteger tus datos personales.  
 Esta Política de Privacidad explica qué información recopilamos, cómo la utilizamos y qué opciones tienes sobre su tratamiento.
 
 Al utilizar nuestro sitio web y nuestros servicios de generación de retratos con IA (el “Servicio”), aceptas las prácticas descritas en esta Política.

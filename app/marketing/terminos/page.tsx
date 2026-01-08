@@ -13,34 +13,34 @@ export default function TerminosPage() {
             ← Volver al inicio
           </Link>
           <span className="text-lg font-semibold">
-            GlowShot<span className="text-orange-500">.ai</span>
+            AuraShot<span className="text-orange-500">.ai</span>
           </span>
         </header>
 
         <article className="prose prose-sm sm:prose lg:prose-lg max-w-none">
-          <h1>Términos y Condiciones de GlowShot AI</h1>
+          <h1>Términos y Condiciones de AuraShot AI</h1>
           <p>
             <strong>Última actualización:</strong> 1 de enero de 2026
           </p>
 
           <pre className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">
-{`# Términos y Condiciones de GlowShot AI
+{`# Términos y Condiciones de AuraShot AI
 
 Última actualización: 1 de enero de 2026
 
-Bienvenido/a a GlowShot AI.  
+Bienvenido/a a AuraShot AI.  
 Al acceder o utilizar nuestro sitio web y nuestros servicios de generación de retratos con inteligencia artificial (el “Servicio”), aceptas estos Términos y Condiciones. Si no estás de acuerdo, no debes utilizar el Servicio.
 
 ## 1. Descripción del servicio
 
-GlowShot AI permite a los usuarios subir sus propias fotografías (“Imágenes de origen”) para entrenar un modelo de inteligencia artificial personalizado y generar retratos digitales (“Imágenes generadas”).  
+AuraShot AI permite a los usuarios subir sus propias fotografías (“Imágenes de origen”) para entrenar un modelo de inteligencia artificial personalizado y generar retratos digitales (“Imágenes generadas”).  
 Los productos que ofrecemos son digitales y se entregan en formato de archivo de imagen a través de nuestro sitio web o por descarga.
 
 No ofrecemos productos físicos ni envíos.
 
 ## 2. Requisitos de uso
 
-Para utilizar GlowShot AI declaras y garantizas que:
+Para utilizar AuraShot AI declaras y garantizas que:
 
 - Tienes al menos 18 años, o cuentas con el consentimiento de tus padres/tutores legales.
 - Eres el titular de los derechos de las fotografías que subes, o tienes permiso válido para utilizarlas con fines de generación de retratos.
@@ -67,11 +67,11 @@ Está expresamente prohibido subir imágenes que contengan:
 - Contenido ilegal, difamatorio o que infrinja derechos de autor o derechos de imagen de terceros.
 - Imágenes de menores sin el consentimiento legal correspondiente.
 
-GlowShot AI puede revisar contenido de forma automatizada o manual y se reserva el derecho de eliminar Imágenes de origen o bloquear cuentas en caso de violación de estas reglas.
+AuraShot AI puede revisar contenido de forma automatizada o manual y se reserva el derecho de eliminar Imágenes de origen o bloquear cuentas en caso de violación de estas reglas.
 
 ## 5. Pagos y precios
 
-GlowShot AI ofrece distintos paquetes de generación de retratos, que pueden incluir una cantidad determinada de imágenes y características adicionales (por ejemplo: cantidad de estilos, atuendos y fondos).
+AuraShot AI ofrece distintos paquetes de generación de retratos, que pueden incluir una cantidad determinada de imágenes y características adicionales (por ejemplo: cantidad de estilos, atuendos y fondos).
 
 - Los precios se muestran en dólares estadounidenses (USD), salvo que se indique lo contrario.
 - El procesamiento de pagos se realiza mediante proveedores externos, que actúan como comerciante registrado en algunas jurisdicciones.
@@ -104,7 +104,7 @@ Las solicitudes de reembolso deberán realizarse por escrito, enviando un correo
 
 ### 8.1 Imágenes de origen
 
-Sigues siendo titular de los derechos sobre las fotografías originales que subes a GlowShot AI.  
+Sigues siendo titular de los derechos sobre las fotografías originales que subes a AuraShot AI.  
 Al subirlas, nos concedes una licencia limitada, no exclusiva, mundial y revocable para:
 
 - Almacenarlas de forma segura.
@@ -121,7 +121,7 @@ Queda prohibido utilizar las Imágenes generadas para fines ilegales, difamatori
 
 ### 8.3 Propiedad del software y la plataforma
 
-Todo el código, modelos, interfaz, diseño y marca GlowShot AI son propiedad de sus respectivos titulares.  
+Todo el código, modelos, interfaz, diseño y marca AuraShot AI son propiedad de sus respectivos titulares.  
 No se concede ningún derecho sobre el software, salvo el uso limitado del Servicio según estos Términos.
 
 ## 9. Datos personales y privacidad
@@ -133,7 +133,7 @@ Al utilizar el Servicio, declaras haber leído y aceptado dicha política.
 
 En la medida máxima permitida por la ley:
 
-- GlowShot AI no será responsable por daños indirectos, incidentales, especiales, consecuentes o punitivos, ni por pérdida de beneficios, datos o reputación, derivados del uso o la imposibilidad de uso del Servicio.
+- AuraShot AI no será responsable por daños indirectos, incidentales, especiales, consecuentes o punitivos, ni por pérdida de beneficios, datos o reputación, derivados del uso o la imposibilidad de uso del Servicio.
 - Nuestra responsabilidad total acumulada frente a ti, por cualquier reclamación relacionada con el Servicio, no excederá el importe que hayas pagado por los paquetes contratados en los últimos 12 meses.
 
 Nada en estos Términos limita derechos irrenunciables del consumidor que puedan aplicarse según tu jurisdicción.
@@ -150,7 +150,7 @@ El uso continuado del Servicio tras la publicación de los cambios implicará la
 Puedes dejar de utilizar el Servicio en cualquier momento.  
 También puedes solicitar la eliminación de tu cuenta y de tus datos personales según se describe en la Política de Privacidad.
 
-GlowShot AI puede suspender o cerrar tu cuenta si:
+AuraShot AI puede suspender o cerrar tu cuenta si:
 
 - Incumples estos Términos.
 - Usas el Servicio de forma ilegal o abusiva.
@@ -158,7 +158,7 @@ GlowShot AI puede suspender o cerrar tu cuenta si:
 
 ## 13. Legislación aplicable
 
-Estos Términos se regirán e interpretarán de acuerdo con las leyes aplicables del país/territorio donde esté registrada la entidad responsable de GlowShot AI, sin perjuicio de las normas de protección al consumidor que puedan corresponderte en tu lugar de residencia.
+Estos Términos se regirán e interpretarán de acuerdo con las leyes aplicables del país/territorio donde esté registrada la entidad responsable de AuraShot AI, sin perjuicio de las normas de protección al consumidor que puedan corresponderte en tu lugar de residencia.
 
 ## 14. Contacto
 

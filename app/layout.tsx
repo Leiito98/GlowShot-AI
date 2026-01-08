@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GlowShot AI",
+  title: "AuraShot AI",
   description: "Genera fotos profesionales con IA",
 };
 

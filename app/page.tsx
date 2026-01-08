@@ -10,24 +10,31 @@ import { PricingSection } from "@/app/components/sections/PricingSection";
 import { HelpSection } from "@/app/components/sections/HelpSection";
 import { HomeView } from "@/app/components/views/HomeView";
 import { AuthChoiceModal } from "@/app/components/modals/AuthChoiceModal";
-import PaddleBootstrap from "@/app/components/payments/PaddleBootstrap";
+import { PayModal } from "@/app/components/modals/PayModal"; // ✅ NUEVO
 import { Plan } from "@/app/config/plans";
+
+type PayMethod = "mercadopago" | "payu" | "usdt"; // ✅ debe coincidir con PayModal
 
 export default function LandingPage() {
   const { isSignedIn } = useUser();
   const router = useRouter();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // ✅ Modal métodos de pago
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
+
   const [selectedPlan, setSelectedPlan] = useState<
     "basic" | "standard" | "executive" | null
   >(null);
 
-  // Comprar plan (logueado) usando Paddle
-  const buyPlan = async (plan: Plan) => {
+  // Comprar plan (logueado) usando MercadoPago Checkout Pro (Sandbox/Prod)
+  const buyPlanMP = async (plan: Plan) => {
     setSelectedPlan(plan.id as "basic" | "standard" | "executive");
 
     try {
-      const res = await fetch("/api/paddle/create-checkout", {
+      const res = await fetch("/api/mp/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId: plan.id }),
@@ -35,40 +42,60 @@ export default function LandingPage() {
 
       const data = await res.json();
 
-      if (!res.ok || !data?.transactionId) {
-        console.error("Error create-checkout:", data);
-        alert(data?.error || "No se pudo iniciar el pago con Paddle.");
+      if (!res.ok || !data?.checkoutUrl) {
+        console.error("Error mp create-checkout:", data);
+        alert(data?.error || "No se pudo iniciar el pago con MercadoPago.");
         return;
       }
 
-      // @ts-ignore
-      if (window.Paddle) {
-        // @ts-ignore
-        window.Paddle.Checkout.open({
-          transactionId: data.transactionId,
-          settings: {
-            displayMode: "overlay",
-            theme: "light",
-            locale: "es",
-          },
-        });
-      } else {
-        console.error("Paddle JS no está disponible en window.");
-        alert(
-          "No se pudo cargar el checkout de Paddle. Recarga la página e inténtalo de nuevo."
-        );
-      }
+      // Redirect a MercadoPago
+      window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error(err);
-      alert("Error iniciando el pago con Paddle.");
+      alert("Error iniciando el pago con MercadoPago.");
+    }
+  };
+
+  // ✅ En lugar de pagar directo, guardamos plan y abrimos modal de métodos
+  const openPaymentMethodsForPlan = (plan: Plan) => {
+    setPendingPlan(plan);
+    setShowPayModal(true);
+  };
+
+  const handleSelectMethod = (method: PayMethod) => {
+    if (!pendingPlan) return;
+
+    if (method === "mercadopago") {
+      setShowPayModal(false);
+      buyPlanMP(pendingPlan);
+      return;
+    }
+
+    if (method === "payu") {
+      alert("PayU (pagos internacionales) lo conectamos en el próximo paso.");
+      // acá luego: buyPlanPayU(pendingPlan)
+      return;
+    }
+
+    if (method === "usdt") {
+      alert("USDT (crypto) lo conectamos en el próximo paso.");
+      // acá luego: flujo USDT (orden + instrucciones)
+      return;
     }
   };
 
   return (
     <div className="min-h-screen font-sans bg-gradient-to-b from-gray-50 via-white to-orange-50 text-gray-900 selection:bg-orange-100 selection:text-orange-900">
-      {/* Script de Paddle para poder abrir el checkout desde la landing */}
-      <PaddleBootstrap />
       <HeaderBar />
+
+      {/* ✅ Modal métodos de pago (solo logueado y cuando eligen un plan) */}
+      <SignedIn>
+        <PayModal
+          isOpen={showPayModal}
+          onClose={() => setShowPayModal(false)}
+          onSelectMethod={handleSelectMethod}
+        />
+      </SignedIn>
 
       <main className="pb-20">
         <div className="max-w-6xl mx-auto px-4">
@@ -77,7 +104,7 @@ export default function LandingPage() {
             <section className="mt-10 mb-12">
               <div className="rounded-3xl bg-white/80 shadow-[0_18px_60px_rgba(0,0,0,0.08)] p-6 md:p-10 border border-orange-50">
                 <p className="text-xs font-semibold text-orange-500 mb-2 uppercase">
-                  Nuevo · GlowShot AI
+                  Nuevo · AuraShot AI
                 </p>
                 <h1 className="text-3xl md:text-4xl font-bold mb-3">
                   Fotos profesionales de estudio{" "}
@@ -90,18 +117,23 @@ export default function LandingPage() {
                   de casa.
                 </p>
 
-                {/* CTA principal para visitantes (abre modal de auth) */}
+                {/* Landing content (incluye #how-it-works y #examples) */}
                 <HomeView onCreateClick={() => setShowAuthModal(true)} />
               </div>
             </section>
 
-            {/* Pricing para visitantes: botones "Seleccionar" -> modal de registro/login */}
-            <PricingSection
-              showButtons
-              requireAuthNotice={() => setShowAuthModal(true)}
-            />
+            {/* ✅ PRICING ancla real */}
+            <section id="pricing" className="scroll-mt-24">
+              <PricingSection
+                showButtons
+                requireAuthNotice={() => setShowAuthModal(true)}
+              />
+            </section>
 
-            <HelpSection />
+            {/* ✅ REVIEWS ancla real */}
+            <section id="reviews" className="scroll-mt-24">
+              <HelpSection />
+            </section>
 
             <AuthChoiceModal
               isOpen={showAuthModal}
@@ -109,7 +141,7 @@ export default function LandingPage() {
             />
           </SignedOut>
 
-          {/* USUARIO LOGUEADO: ve la misma landing pero puede ir al dashboard y comprar directo */}
+          {/* USUARIO LOGUEADO */}
           <SignedIn>
             <section className="mt-10 mb-12">
               <div className="rounded-3xl bg-white/80 shadow-[0_18px_60px_rgba(0,0,0,0.08)] p-6 md:p-10 border border-orange-50">
@@ -125,15 +157,25 @@ export default function LandingPage() {
                   fotos profesionales con un solo clic.
                 </p>
 
-                {/* CTA principal logueado: ir al dashboard */}
+                {/* CTA principal logueado */}
                 <HomeView onCreateClick={() => router.push("/dashboard")} />
               </div>
             </section>
 
-            {/* Pricing logueado: abre directo el checkout de Paddle */}
-            <PricingSection showButtons onSelectPlan={buyPlan} />
+            {/* ✅ PRICING ancla real (logueado) */}
+            {/* ✅ Antes: onSelectPlan={buyPlan}  -> Abría MP directo */}
+            {/* ✅ Ahora: abre el modal de métodos */}
+            <section id="pricing" className="scroll-mt-24">
+              <PricingSection
+                showButtons
+                onSelectPlan={openPaymentMethodsForPlan}
+              />
+            </section>
 
-            <HelpSection />
+            {/* ✅ REVIEWS ancla real (logueado) */}
+            <section id="reviews" className="scroll-mt-24">
+              <HelpSection />
+            </section>
           </SignedIn>
         </div>
       </main>
