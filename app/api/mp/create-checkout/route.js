@@ -19,7 +19,7 @@ const PRICE_MAP = {
 function getAppUrl() {
   return (
     (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") ||
-    "https://glow-shot-ai-flame.vercel.app"
+    "https://glow-shot-ai-flame.vercel.app/api/mp/webhook"
   );
 }
 
