@@ -8,8 +8,8 @@ const supabaseAdmin = createClient(
 
 // Ajusta estos valores a la cantidad de fotos/créditos que da cada plan
 const PLAN_CREDITS: Record<string, number> = {
-  basic: 20,
-  standard: 40,
+  basic: 40,
+  standard: 60,
   executive: 100,
 };
 
