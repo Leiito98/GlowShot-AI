@@ -1,6 +1,8 @@
 // app/api/mp/create-checkout/route.js
 import { auth } from "@clerk/nextjs/server";
 
+export const runtime = "nodejs";
+
 const PRICE_MAP = {
   basic: {
     title: "AuraShot – Plan Basic",
@@ -16,15 +18,32 @@ const PRICE_MAP = {
   },
 };
 
-function getAppUrl() {
-  return (
-    (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "") ||
-    "https://glow-shot-ai-flame.vercel.app/api/mp/webhook"
-  );
+function normalizeBaseUrl(url) {
+  return String(url || "").trim().replace(/\/$/, "");
 }
 
-function getApiUrl() {
-  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+/**
+ * Base URL público de tu app (Vercel).
+ * Debe ser tipo: https://glow-shot-ai-flame.vercel.app
+ */
+function getAppBaseUrl() {
+  const appUrl =
+    normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+    normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL) || // fallback si usabas esto
+    "";
+
+  if (!appUrl) {
+    // 🚨 Sin base url no podemos armar back_urls ni notification_url correctamente
+    // devolvemos string vacío y lo manejamos en el handler
+    return "";
+  }
+
+  // Si por error te ponen /api/... o /api/mp/webhook, lo limpiamos
+  return appUrl.replace(/\/api\/.*$/i, "");
+}
+
+function isValidPlanId(planId) {
+  return planId === "basic" || planId === "standard" || planId === "executive";
 }
 
 export async function POST(request) {
@@ -33,39 +52,54 @@ export async function POST(request) {
     if (!userId) {
       return new Response(JSON.stringify({ error: "No autenticado" }), {
         status: 401,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
     if (!process.env.MP_ACCESS_TOKEN) {
-      console.error("❌ Falta MP_ACCESS_TOKEN en el entorno");
+      console.error("❌ Falta MP_ACCESS_TOKEN");
       return new Response(
         JSON.stringify({ error: "Config MercadoPago incompleta" }),
-        { status: 500 }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const { planId } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const planId = String(body?.planId || "").trim();
 
-    if (!planId || typeof planId !== "string" || !PRICE_MAP[planId]) {
+    if (!isValidPlanId(planId) || !PRICE_MAP[planId]) {
       return new Response(JSON.stringify({ error: "planId inválido" }), {
         status: 400,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    const APP_URL = getAppUrl();
-    const API_URL = getApiUrl();
+    const APP_BASE_URL = getAppBaseUrl();
+    if (!APP_BASE_URL) {
+      console.error(
+        "❌ Falta NEXT_PUBLIC_APP_URL (ej: https://tuapp.vercel.app). Es obligatorio para back_urls + notification_url"
+      );
+      return new Response(
+        JSON.stringify({
+          error:
+            "Falta NEXT_PUBLIC_APP_URL en el entorno (ej: https://tuapp.vercel.app)",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-    // ✅ MODO explícito (no por prefijo)
-    // En .env: MP_MODE=sandbox  (o production)
-    const mpMode = (process.env.MP_MODE || "sandbox").toLowerCase();
+    // ✅ MP_MODE=sandbox | production
+    const mpMode = String(process.env.MP_MODE || "sandbox").toLowerCase();
 
     const item = PRICE_MAP[planId];
 
-    // ✅ Mejor que metadata: external_reference (viene fácil en pagos/webhook)
+    // ✅ Esto es CLAVE para tu webhook (fallback robusto)
     const external_reference = `${userId}:${planId}`;
 
-    const notification_url = API_URL ? `${API_URL}/api/mp/webhook` : undefined;
+    // ✅ Webhook: SIEMPRE desde tu dominio público (no localhost)
+    const notification_url = `${APP_BASE_URL}/api/mp/webhook`;
 
+    // ✅ Back URLs: a páginas de tu app (no /api)
     const preferencePayload = {
       items: [
         {
@@ -76,20 +110,28 @@ export async function POST(request) {
         },
       ],
       back_urls: {
-        // ✅ mandalo a tu app (Vercel). Evitá ngrok acá.
-        success: `${APP_URL}/payment-success`,
-        failure: `${APP_URL}/payment-cancel`,
-        pending: `${APP_URL}/payment-pending`,
+        success: `${APP_BASE_URL}/payment-success`,
+        failure: `${APP_BASE_URL}/payment-cancel`,
+        pending: `${APP_BASE_URL}/payment-pending`,
       },
       auto_return: "approved",
 
       external_reference,
 
-      // (Opcional) también lo dejamos en metadata
+      // (Opcional) también en metadata
       metadata: { app_user_id: userId, plan_id: planId },
 
-      ...(notification_url ? { notification_url } : {}),
+      // ✅ MUY IMPORTANTE: sin esto no te llega el webhook
+      notification_url,
     };
+
+    console.log("🟧 MP create-checkout payload:", {
+      planId,
+      mpMode,
+      notification_url,
+      external_reference,
+      back_urls: preferencePayload.back_urls,
+    });
 
     const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -100,25 +142,28 @@ export async function POST(request) {
       body: JSON.stringify(preferencePayload),
     });
 
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      console.error("MercadoPago API error:", JSON.stringify(json, null, 2));
+      console.error("❌ MercadoPago API error:", JSON.stringify(json, null, 2));
       return new Response(
-        JSON.stringify({ error: "Error creando preferencia con MercadoPago" }),
-        { status: 500 }
+        JSON.stringify({
+          error: "Error creando preferencia con MercadoPago",
+          details: json,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const preferenceId = json?.id;
+    const preferenceId = json?.id || null;
     const initPoint = json?.init_point || null;
     const sandboxInitPoint = json?.sandbox_init_point || null;
 
     if (!preferenceId || (!initPoint && !sandboxInitPoint)) {
-      console.error("Respuesta incompleta de MP:", json);
+      console.error("❌ Respuesta incompleta de MP:", json);
       return new Response(
         JSON.stringify({ error: "MercadoPago no devolvió URLs de checkout" }),
-        { status: 500 }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -129,14 +174,22 @@ export async function POST(request) {
       sandboxInitPoint;
 
     return new Response(
-      JSON.stringify({ preferenceId, checkoutUrl, initPoint, sandboxInitPoint }),
-      { status: 200 }
+      JSON.stringify({
+        preferenceId,
+        checkoutUrl,
+        initPoint,
+        sandboxInitPoint,
+        mode: mpMode,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (e) {
-    console.error("mp create-checkout exception:", e);
+    console.error("❌ mp create-checkout exception:", e);
     return new Response(
-      JSON.stringify({ error: e?.message || "Error interno creando checkout (MP)" }),
-      { status: 500 }
+      JSON.stringify({
+        error: e?.message || "Error interno creando checkout (MP)",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
