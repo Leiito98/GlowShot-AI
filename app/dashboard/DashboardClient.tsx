@@ -62,7 +62,7 @@ export default function DashboardClient() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [credits, setCredits] = useState<number>(0);
 
-  // Preferencias de estudio
+  // Preferencias de estudio (✅ arrancan en null para que NO haya nada preseleccionado)
   const [gender, setGender] = useState<UXGender | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string>("Professional");
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
@@ -73,12 +73,12 @@ export default function DashboardClient() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
 
-  const [ageRange, setAgeRange] = useState<AgeRange| null>(null);
-  const [hairColor, setHairColor] = useState<HairColor| null>(null);
-  const [hairLength, setHairLength] = useState<HairLength| null>(null);
-  const [hairStyle, setHairStyle] = useState<HairStyle| null>(null);
-  const [ethnicity, setEthnicity] = useState<Ethnicity| null>(null);
-  const [bodyType, setBodyType] = useState<BodyType| null>(null);
+  const [ageRange, setAgeRange] = useState<AgeRange | null>(null);
+  const [hairColor, setHairColor] = useState<HairColor | null>(null);
+  const [hairLength, setHairLength] = useState<HairLength | null>(null);
+  const [hairStyle, setHairStyle] = useState<HairStyle | null>(null);
+  const [ethnicity, setEthnicity] = useState<Ethnicity | null>(null);
+  const [bodyType, setBodyType] = useState<BodyType | null>(null);
   const [attires, setAttires] = useState<Attire[]>([]);
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
 
@@ -114,7 +114,7 @@ export default function DashboardClient() {
     }
   }, [user]);
 
-  // --- Cargar galería (por si luego la usás acá) ---
+  // --- Cargar galería ---
   const loadGallery = useCallback(async () => {
     if (!user) return;
     try {
@@ -126,14 +126,14 @@ export default function DashboardClient() {
     }
   }, [user]);
 
-  // ✅ abrir modal métodos (opcionalmente con plan preseleccionado)
+  // ✅ abrir modal métodos
   const openPayModal = useCallback((plan?: Plan) => {
     if (plan) setPendingPlan(plan);
     else setPendingPlan(null);
     setShowPayModal(true);
   }, []);
 
-  // ✅ si vuelve de MP con ?paid=1 mostramos toast y refrescamos créditos
+  // ✅ si vuelve de MP con ?paid=1
   useEffect(() => {
     if (!user) return;
 
@@ -251,7 +251,7 @@ export default function DashboardClient() {
     [user, pushToast]
   );
 
-  // --- Comprar plan (MercadoPago Checkout Pro) ---
+  // --- Comprar plan (MP) ---
   const buyPlanMP = async (plan: Plan) => {
     pushToast(`Procesando compra de ${plan.name}...`, "info");
 
@@ -266,10 +266,7 @@ export default function DashboardClient() {
 
       if (!res.ok || !data?.checkoutUrl) {
         console.error("Error mp create-checkout:", data);
-        pushToast(
-          data?.error || "No se pudo iniciar el pago con MercadoPago.",
-          "error"
-        );
+        pushToast(data?.error || "No se pudo iniciar el pago con MercadoPago.", "error");
         return;
       }
 
@@ -289,13 +286,9 @@ export default function DashboardClient() {
       return;
     }
 
-    // ✅ chequeo créditos (usa el valor real recién leído)
     const c = await fetchCredits();
     if (c < TRAIN_COST) {
-      pushToast(
-        "Créditos insuficientes para entrenar tu modelo. Comprá un pack para continuar.",
-        "warning"
-      );
+      pushToast("Créditos insuficientes para entrenar tu modelo. Comprá un pack para continuar.", "warning");
       openPayModal();
       return;
     }
@@ -313,7 +306,6 @@ export default function DashboardClient() {
 
       const data = await res.json().catch(() => ({}));
 
-      // 402: créditos insuficientes (server-side)
       if (res.status === 402) {
         pushToast("Créditos insuficientes. Comprá un pack para entrenar.", "warning");
         openPayModal();
@@ -321,7 +313,6 @@ export default function DashboardClient() {
         return;
       }
 
-      // 503: replicate bloqueado / caído
       if (res.status === 503) {
         setTrainingBlockedReason(
           data?.blockedReason ||
@@ -348,11 +339,9 @@ export default function DashboardClient() {
       setTrainingId(String(data.id));
       setStatus(String(data.status || "starting"));
 
-      // si el server devolvió remainingCredits, actualizamos
       if (typeof data?.remainingCredits === "number") {
         setCredits(Number(data.remainingCredits));
       } else {
-        // sino refrescamos
         fetchCredits();
       }
     } catch (error: any) {
@@ -365,25 +354,21 @@ export default function DashboardClient() {
   // --- Chequear estado ---
   const checkStatus = async () => {
     if (!trainingId) return;
-  
+
     try {
       const res = await fetch("/api/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ trainingId }),
       });
-  
+
       const data = await res.json();
-  
-      // ✅ NO setear "processing" como fallback (eso es solo UI)
-      // Si no viene status, dejamos el que ya teníamos
+
       if (data?.status) setStatus(String(data.status));
-  
+
       if (data?.status === "completed" && data?.weights) {
         setWeightsUrl(String(data.weights));
-  
         if (data.trigger) localStorage.setItem("trigger_word", String(data.trigger));
-  
         setMode("dashboard");
         pushToast("Tu modelo Flux está listo. ¡Ya puedes generar fotos! ✨", "success");
       }
@@ -395,7 +380,6 @@ export default function DashboardClient() {
 
   // --- Generar foto ---
   const generatePhotos = async () => {
-    // ✅ bloquea si no hay créditos
     const c = await fetchCredits();
     if (c <= 0) {
       pushToast("No tenés créditos. Comprá un pack para seguir generando.", "warning");
@@ -403,11 +387,15 @@ export default function DashboardClient() {
       return;
     }
 
+    // ✅ Si todavía no eligió gender, no se puede generar
+    if (!gender) {
+      pushToast("Seleccioná tu sexo para generar fotos.", "warning");
+      return;
+    }
+
     setIsGeneratingBatch(true);
 
-    const effectiveGender: "man" | "woman" =
-      gender === "non_binary" ? "woman" : gender;
-
+    const effectiveGender: "man" | "woman" = gender === "non_binary" ? "woman" : gender;
     const prompts = getPromptsForPack(effectiveGender, 1, selectedStyle);
 
     try {
@@ -437,11 +425,8 @@ export default function DashboardClient() {
 
       if (data.imageUrl) {
         setGeneratedImages((prev) => [data.imageUrl, ...prev]);
-        if (typeof data.remainingCredits === "number") {
-          setCredits(Number(data.remainingCredits));
-        } else {
-          fetchCredits();
-        }
+        if (typeof data.remainingCredits === "number") setCredits(Number(data.remainingCredits));
+        else fetchCredits();
         pushToast("Foto generada correctamente ✅", "success");
       } else if (data.error) {
         pushToast(String(data.error), "error");
@@ -456,6 +441,11 @@ export default function DashboardClient() {
 
   // --- Terminar wizard inicial ---
   const handleFinishSetup = async () => {
+    if (!gender) {
+      pushToast("Seleccioná tu sexo para continuar.", "warning");
+      return;
+    }
+
     try {
       if (user) {
         await fetch("/api/save-preferences", {
@@ -478,9 +468,7 @@ export default function DashboardClient() {
     }
 
     setHasCompletedPreferences(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("hasCompletedPreferences", "1");
-    }
+    if (typeof window !== "undefined") window.localStorage.setItem("hasCompletedPreferences", "1");
     setMode("upload");
   };
 
@@ -514,10 +502,7 @@ export default function DashboardClient() {
                 trainCost={TRAIN_COST}
                 onNeedCredits={() => {
                   openPayModal();
-                  pushToast(
-                    "Créditos insuficientes. Elegí un método de pago para continuar.",
-                    "warning"
-                  );
+                  pushToast("Créditos insuficientes. Elegí un método de pago para continuar.", "warning");
                 }}
                 trainingBlockedReason={trainingBlockedReason}
               />
@@ -560,23 +545,22 @@ export default function DashboardClient() {
         </div>
       </main>
 
-        {/* ✅ Modal métodos de pago (usa PayModal que me pasaste: onSelectMethod) */}
-        <PayModal
-            isOpen={showPayModal}
-            onClose={() => setShowPayModal(false)}
-            onSelect={({ plan, method }) => {
-                if (method === "mercadopago") {
-                setShowPayModal(false);
-                buyPlanMP(plan);
-                return;
-                }
-                if (method === "payu") {
-                pushToast("PayU: lo conectamos en el próximo paso.", "info");
-                return;
-                }
-                pushToast("USDT: lo conectamos en el próximo paso.", "info");
-            }}
-        />
+      <PayModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        onSelect={({ plan, method }) => {
+          if (method === "mercadopago") {
+            setShowPayModal(false);
+            buyPlanMP(plan);
+            return;
+          }
+          if (method === "payu") {
+            pushToast("PayU: lo conectamos en el próximo paso.", "info");
+            return;
+          }
+          pushToast("USDT: lo conectamos en el próximo paso.", "info");
+        }}
+      />
 
       <ToastStack toasts={toasts} onClose={closeToast} />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   STYLE_CATEGORIES,
@@ -34,20 +34,27 @@ type DashboardViewProps = {
   weightsUrl: string | null;
   credits: number;
 
-  gender: UXGender;
-  setGender: (g: UXGender) => void;
-  ageRange: AgeRange;
-  setAgeRange: (v: AgeRange) => void;
-  hairColor: HairColor;
-  setHairColor: (v: HairColor) => void;
-  hairLength: HairLength;
-  setHairLength: (v: HairLength) => void;
-  hairStyle: HairStyle;
-  setHairStyle: (v: HairStyle) => void;
-  ethnicity: Ethnicity;
-  setEthnicity: (v: Ethnicity) => void;
-  bodyType: BodyType;
-  setBodyType: (v: BodyType) => void;
+  // ✅ PRO: pueden ser null al iniciar el wizard
+  gender: UXGender | null;
+  setGender: (g: UXGender | null) => void;
+
+  ageRange: AgeRange | null;
+  setAgeRange: (v: AgeRange | null) => void;
+
+  hairColor: HairColor | null;
+  setHairColor: (v: HairColor | null) => void;
+
+  hairLength: HairLength | null;
+  setHairLength: (v: HairLength | null) => void;
+
+  hairStyle: HairStyle | null;
+  setHairStyle: (v: HairStyle | null) => void;
+
+  ethnicity: Ethnicity | null;
+  setEthnicity: (v: Ethnicity | null) => void;
+
+  bodyType: BodyType | null;
+  setBodyType: (v: BodyType | null) => void;
 
   attires: Attire[];
   setAttires: (v: Attire[]) => void;
@@ -138,16 +145,76 @@ export function DashboardView({
   notify,
   onBuyCredits,
 }: DashboardViewProps) {
-  // -------------------- WIZARD PREVIO --------------------
+  // -------------------- WIZARD --------------------
   const [setupStep, setSetupStep] = useState(0);
+
+  const wizardStepsCount = 7;
+  const isLastStep = setupStep === wizardStepsCount - 1;
+
+  const progressPct = ((setupStep + 1) / wizardStepsCount) * 100;
+
+  // ✅ PRO: validación por paso (para deshabilitar continuar)
+  const canContinue = useMemo(() => {
+    switch (setupStep) {
+      case 0:
+        return !!gender;
+      case 1:
+        return !!ageRange;
+      case 2:
+        return !!hairColor;
+      case 3:
+        return !!hairLength;
+      case 4:
+        return !!hairStyle;
+      case 5:
+        return !!ethnicity;
+      case 6:
+        return !!bodyType;
+      default:
+        return false;
+    }
+  }, [setupStep, gender, ageRange, hairColor, hairLength, hairStyle, ethnicity, bodyType]);
+
+  // ✅ PRO: validación total antes de terminar (por si el user salta cosas)
+  const allSetupCompleted = useMemo(() => {
+    return (
+      !!gender &&
+      !!ageRange &&
+      !!hairColor &&
+      !!hairLength &&
+      !!hairStyle &&
+      !!ethnicity &&
+      !!bodyType
+    );
+  }, [gender, ageRange, hairColor, hairLength, hairStyle, ethnicity, bodyType]);
+
+  const goNext = () => {
+    if (!canContinue) {
+      notify("Completá este paso para continuar.", "warning");
+      return;
+    }
+
+    if (isLastStep) {
+      if (!allSetupCompleted) {
+        notify("Te falta completar el perfil antes de continuar.", "warning");
+        return;
+      }
+      onFinishSetup();
+      return;
+    }
+
+    setSetupStep((s) => Math.min(s + 1, wizardStepsCount - 1));
+  };
+
+  const goPrev = () => {
+    setSetupStep((s) => Math.max(s - 1, 0));
+  };
 
   const wizardSteps = [
     // 0 - Sexo
     (
       <section key="gender" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es tu sexo?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es tu sexo?</h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
           Esto nos ayuda a generar fotos que se parezcan realmente a vos.
         </p>
@@ -163,6 +230,7 @@ export function DashboardView({
           >
             <span>♂</span> <span>Hombre</span>
           </button>
+
           <button
             onClick={() => setGender("woman")}
             className={`cursor-pointer py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
@@ -173,6 +241,7 @@ export function DashboardView({
           >
             <span>♀</span> <span>Mujer</span>
           </button>
+
           <button
             onClick={() => setGender("non_binary")}
             className={`cursor-pointer py-4 px-4 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border ${
@@ -190,9 +259,7 @@ export function DashboardView({
     // 1 - Edad
     (
       <section key="age" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuántos años tenés?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuántos años tenés?</h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
           Usamos esto para ajustar rasgos de forma sutil.
         </p>
@@ -218,9 +285,7 @@ export function DashboardView({
     // 2 - Color de pelo
     (
       <section key="hairColor" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es tu color de pelo?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es tu color de pelo?</h2>
         <p className="text-sm text-gray-500 text-center mb-6 max-w-md mx-auto">
           Si tu color exacto no está, elegí el más parecido.
         </p>
@@ -246,9 +311,7 @@ export function DashboardView({
     // 3 - Longitud de pelo
     (
       <section key="hairLength" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es la longitud de tu pelo?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es la longitud de tu pelo?</h2>
         <div className="flex flex-wrap gap-2 justify-center">
           {HAIR_LENGTH_OPTIONS.map((opt) => (
             <button
@@ -270,9 +333,7 @@ export function DashboardView({
     // 4 - Tipo de cabello
     (
       <section key="hairStyle" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es tu tipo de cabello?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es tu tipo de cabello?</h2>
         <div className="flex flex-wrap gap-2 justify-center">
           {HAIR_STYLE_OPTIONS.map((opt) => (
             <button
@@ -294,9 +355,7 @@ export function DashboardView({
     // 5 - Etnia
     (
       <section key="ethnicity" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es tu etnia?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es tu etnia?</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
           {ETHNICITY_OPTIONS.map((opt) => (
             <button
@@ -318,9 +377,7 @@ export function DashboardView({
     // 6 - Tipo de cuerpo
     (
       <section key="bodyType" className="space-y-6">
-        <h2 className="text-3xl font-bold text-center mb-2">
-          ¿Cuál es tu tipo de cuerpo?
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-2">¿Cuál es tu tipo de cuerpo?</h2>
         <div className="flex flex-wrap gap-2 justify-center">
           {BODY_TYPE_OPTIONS.map((opt) => (
             <button
@@ -339,22 +396,6 @@ export function DashboardView({
       </section>
     ),
   ];
-
-  const wizardStepsCount = wizardSteps.length;
-  const isLastStep = setupStep === wizardStepsCount - 1;
-  const progressPct = ((setupStep + 1) / wizardStepsCount) * 100;
-
-  const goNext = () => {
-    if (isLastStep) {
-      onFinishSetup();
-    } else {
-      setSetupStep((s) => Math.min(s + 1, wizardStepsCount - 1));
-    }
-  };
-
-  const goPrev = () => {
-    setSetupStep((s) => Math.max(s - 1, 0));
-  };
 
   // Si ES primera vez y NO hay modelo => solo wizard
   if (showFullSetup && !weightsUrl) {
@@ -377,6 +418,7 @@ export function DashboardView({
             >
               ← Volver
             </button>
+
             <span className="text-xs text-gray-400">
               Paso {setupStep + 1} de {wizardStepsCount}
             </span>
@@ -394,7 +436,12 @@ export function DashboardView({
           <div className="flex justify-end mt-8">
             <button
               onClick={goNext}
-              className="bg-[#ff5a1f] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#e04f1b] transition cursor-pointer"
+              disabled={!canContinue}
+              className={`px-8 py-3 rounded-full font-semibold transition ${
+                canContinue
+                  ? "bg-[#ff5a1f] text-white hover:bg-[#e04f1b] cursor-pointer"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
+              }`}
             >
               {isLastStep ? "Continuar a subir fotos" : "Continuar"}
             </button>
@@ -473,6 +520,7 @@ export function DashboardView({
       notify("Seleccioná al menos un fondo para generar tus fotos.", "info");
       return;
     }
+
     onGenerate();
   };
 
@@ -484,9 +532,7 @@ export function DashboardView({
 
       {!weightsUrl ? (
         <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-          <h3 className="text-xl font-bold mb-4">
-            Aún no tenés un modelo entrenado
-          </h3>
+          <h3 className="text-xl font-bold mb-4">Aún no tenés un modelo entrenado</h3>
           <p className="text-gray-500 mb-4 max-w-md mx-auto">
             Subí tus selfies para entrenar tu modelo y empezar a generar
             retratos profesionales.
@@ -495,15 +541,13 @@ export function DashboardView({
             onClick={onBack}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-900 transition cursor-pointer"
           >
-            Subir mis fotos
-            <span>→</span>
+            Subir mis fotos <span>→</span>
           </button>
         </div>
       ) : (
         <div className="bg-white rounded-3xl shadow p-8 md:p-12">
           <h3 className="text-gray-500 font-medium mb-8 text-center">
-            Elegí estilos, atuendos y fondos para tus nuevas fotos
-            profesionales.
+            Elegí estilos, atuendos y fondos para tus nuevas fotos profesionales.
           </h3>
 
           {/* Estilo general */}
@@ -545,9 +589,7 @@ export function DashboardView({
                       }`}
                     >
                       <div className="font-semibold mb-1">{opt.label}</div>
-                      <div className="text-xs text-gray-500">
-                        {opt.helper}
-                      </div>
+                      <div className="text-xs text-gray-500">{opt.helper}</div>
                     </button>
                   );
                 })}
@@ -574,9 +616,7 @@ export function DashboardView({
                       }`}
                     >
                       <div className="font-semibold mb-1">{opt.label}</div>
-                      <div className="text-xs text-gray-500">
-                        {opt.helper}
-                      </div>
+                      <div className="text-xs text-gray-500">{opt.helper}</div>
                     </button>
                   );
                 })}
@@ -602,9 +642,7 @@ export function DashboardView({
           {/* Resultados */}
           {generatedImages.length > 0 && (
             <div className="mt-10 pt-10 border-t border-gray-100">
-              <h4 className="text-left font-bold mb-4">
-                Resultados recientes:
-              </h4>
+              <h4 className="text-left font-bold mb-4">Resultados recientes:</h4>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {generatedImages.map((img, i) => (
