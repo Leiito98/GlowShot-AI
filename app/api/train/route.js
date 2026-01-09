@@ -186,7 +186,7 @@ export async function POST(request) {
         {
           error: "TRAINING_BLOCKED",
           message:
-            "No se pudo iniciar el entrenamiento. Se reintegraron los créditos.",
+            "No se pudo iniciar el entrenamiento. Intente más tarde.",
           details: String(e?.message || e),
         },
         { status: 503 }
@@ -213,7 +213,6 @@ export async function POST(request) {
       id: training.id,
       trigger_word: trigger,
       status: "starting",
-      remainingCredits: dec.credits,
     });
   } catch (err) {
     console.error("❌ ERROR TRAIN:", err);
