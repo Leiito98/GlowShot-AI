@@ -284,7 +284,7 @@ export default function DashboardClient() {
   const startTraining = async () => {
     setTrainingBlockedReason(null);
 
-    if (uploadedImages.length < 8) {
+    if (uploadedImages.length < 1) {
       pushToast("Debes subir al menos 8 fotos para entrenar tu modelo.", "warning");
       return;
     }

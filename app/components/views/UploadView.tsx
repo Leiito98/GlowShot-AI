@@ -42,7 +42,7 @@ export function UploadView({
   onNeedCredits,
   trainingBlockedReason = null,
 }: UploadViewProps) {
-  const hasMinPhotos = uploadedImages.length >= 8;
+  const hasMinPhotos = uploadedImages.length >= 1;
   const hasEnoughCredits = credits >= trainCost;
   const missingCredits = Math.max(0, trainCost - credits);
 
@@ -77,7 +77,7 @@ export function UploadView({
   const buttonLabel = trainingBlockedReason
     ? "Entrenamiento no disponible"
     : !hasMinPhotos
-    ? "Subí al menos 6 fotos"
+    ? "Subí al menos 8 fotos"
     : hasEnoughCredits
     ? "Iniciar entrenamiento de mi modelo"
     : "Comprar créditos para entrenar";
@@ -129,13 +129,6 @@ export function UploadView({
           Usá entre <span className="font-semibold">6 y 10 selfies claras</span>{" "}
           donde se vea bien tu cara.
         </p>
-
-        {/* Créditos */}
-        <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-gray-700">
-            <span className="font-semibold">Créditos:</span> {credits}
-          </span>
-        </div>
 
         {uploadProgress && (
           <p className="text-sm text-gray-500 mb-4">{uploadProgress}</p>
@@ -206,7 +199,7 @@ export function UploadView({
             {!hasMinPhotos && (
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 text-left">
                 <p className="font-bold text-gray-900 mb-1">
-                  Subí al menos 6 fotos
+                  Subí al menos 8 fotos
                 </p>
                 <p className="text-sm text-gray-600">
                   Con {uploadedImages.length} foto(s) no alcanza para entrenar.
