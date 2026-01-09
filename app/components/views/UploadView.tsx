@@ -42,7 +42,7 @@ export function UploadView({
   onNeedCredits,
   trainingBlockedReason = null,
 }: UploadViewProps) {
-  const hasMinPhotos = uploadedImages.length >= 1;
+  const hasMinPhotos = uploadedImages.length >= 8;
   const hasEnoughCredits = credits >= trainCost;
   const missingCredits = Math.max(0, trainCost - credits);
 

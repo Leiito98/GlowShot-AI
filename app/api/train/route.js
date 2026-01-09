@@ -112,9 +112,9 @@ export async function POST(request) {
 
     // 1) Validar fotos
     const { images } = await request.json();
-    if (!images || images.length < 1) {
+    if (!images || images.length < 8) {
       return NextResponse.json(
-        { error: "Debes enviar al menos 6 imágenes." },
+        { error: "Debes enviar al menos 8 imágenes." },
         { status: 400 }
       );
     }
