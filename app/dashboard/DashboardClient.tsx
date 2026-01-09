@@ -63,7 +63,7 @@ export default function DashboardClient() {
   const [credits, setCredits] = useState<number>(0);
 
   // Preferencias de estudio
-  const [gender, setGender] = useState<UXGender>("woman");
+  const [gender, setGender] = useState<UXGender | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string>("Professional");
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
@@ -73,12 +73,12 @@ export default function DashboardClient() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
 
-  const [ageRange, setAgeRange] = useState<AgeRange>("25_29");
-  const [hairColor, setHairColor] = useState<HairColor>("black");
-  const [hairLength, setHairLength] = useState<HairLength>("short");
-  const [hairStyle, setHairStyle] = useState<HairStyle>("straight");
-  const [ethnicity, setEthnicity] = useState<Ethnicity>("hispanic");
-  const [bodyType, setBodyType] = useState<BodyType>("athletic");
+  const [ageRange, setAgeRange] = useState<AgeRange| null>(null);
+  const [hairColor, setHairColor] = useState<HairColor| null>(null);
+  const [hairLength, setHairLength] = useState<HairLength| null>(null);
+  const [hairStyle, setHairStyle] = useState<HairStyle| null>(null);
+  const [ethnicity, setEthnicity] = useState<Ethnicity| null>(null);
+  const [bodyType, setBodyType] = useState<BodyType| null>(null);
   const [attires, setAttires] = useState<Attire[]>([]);
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
 
