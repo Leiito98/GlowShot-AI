@@ -14,16 +14,16 @@ type UploadViewProps = {
   status: string;
   onCheckStatus: () => void;
 
-  // ✅ créditos disponibles del usuario
+  // créditos del usuario
   credits: number;
 
-  // ✅ costo de entrenamiento (default 40)
+  // costo del entrenamiento
   trainCost?: number;
 
-  // ✅ abrir modal de pagos / aviso de créditos insuficientes
+  // abrir modal de compra de créditos
   onNeedCredits?: () => void;
 
-  // ✅ si el backend detecta que Replicate está sin saldo / caído
+  // bloqueo por backend
   trainingBlockedReason?: string | null;
 };
 
@@ -42,12 +42,11 @@ export function UploadView({
   onNeedCredits,
   trainingBlockedReason = null,
 }: UploadViewProps) {
-  const hasMinPhotos = uploadedImages.length >= 5;
+  const hasMinPhotos = uploadedImages.length >= 6;
   const hasEnoughCredits = credits >= trainCost;
-
   const missingCredits = Math.max(0, trainCost - credits);
 
-  // ✅ Puede arrancar entrenamiento (cuando el botón debe iniciar training real)
+  // puede iniciar entrenamiento real
   const canStartTraining =
     hasMinPhotos &&
     !trainingId &&
@@ -56,41 +55,38 @@ export function UploadView({
     hasEnoughCredits;
 
   const handleStartClick = () => {
-    // Bloqueado por backend → no hacemos nada
     if (trainingBlockedReason) return;
 
-    // Si falta créditos → abrimos modal
     if (!hasEnoughCredits) {
       onNeedCredits?.();
       return;
     }
 
-    // Si falta fotos / está subiendo / ya hay training → no hacemos nada
     if (!hasMinPhotos || isUploading || trainingId) return;
 
     onStartTraining();
   };
 
-  // ✅ Deshabilitamos por casos donde NO corresponde click:
-  // - falta mínimo de fotos
-  // - está subiendo
-  // - ya hay training
-  // - backend bloqueó
-  // ⚠️ Si NO hay créditos, lo dejamos habilitado para abrir el modal (onNeedCredits)
+  // botón deshabilitado (excepto compra de créditos)
   const isButtonDisabled =
     !hasMinPhotos || isUploading || !!trainingId || !!trainingBlockedReason;
 
   const buttonLabel = trainingBlockedReason
     ? "Entrenamiento no disponible"
     : !hasMinPhotos
-    ? "Subí al menos 5 fotos"
+    ? "Subí al menos 6 fotos"
     : hasEnoughCredits
     ? "Iniciar entrenamiento de mi modelo"
     : "Comprar créditos para entrenar";
 
+  // 👇 cursor SOLO para entrenar o comprar
+  const showPointerCursor =
+    buttonLabel === "Iniciar entrenamiento de mi modelo" ||
+    buttonLabel === "Comprar créditos para entrenar";
+
   return (
     <div className="max-w-2xl mx-auto px-6 pt-10 text-center">
-      {/* Volver al dashboard */}
+      {/* Volver */}
       <button
         onClick={onBack}
         className="mb-6 text-sm text-gray-500 hover:text-black cursor-pointer"
@@ -120,13 +116,15 @@ export function UploadView({
           <p className="text-sm text-gray-500 mb-4">{uploadProgress}</p>
         )}
 
-        {/* Aviso si el entrenamiento está bloqueado por backend */}
+        {/* Bloqueo backend */}
         {trainingBlockedReason && (
           <div className="mb-5 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-left">
             <p className="font-bold text-orange-900 mb-1">
               En estos momentos no podemos entrenar tu modelo
             </p>
-            <p className="text-sm text-orange-900/80">{trainingBlockedReason}</p>
+            <p className="text-sm text-orange-900/80">
+              {trainingBlockedReason}
+            </p>
           </div>
         )}
 
@@ -164,10 +162,9 @@ export function UploadView({
           </div>
         )}
 
-        {/* BOTÓN ENTRENAR */}
+        {/* BOTÓN */}
         {!trainingId && (
           <>
-            {/* Si ya tiene 5 fotos pero no alcanza créditos */}
             {hasMinPhotos && !hasEnoughCredits && !trainingBlockedReason && (
               <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-left">
                 <p className="font-bold text-orange-900 mb-1">
@@ -181,11 +178,10 @@ export function UploadView({
               </div>
             )}
 
-            {/* Si aún no tiene el mínimo */}
             {!hasMinPhotos && (
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 text-left">
                 <p className="font-bold text-gray-900 mb-1">
-                  Subí al menos 5 fotos
+                  Subí al menos 6 fotos
                 </p>
                 <p className="text-sm text-gray-600">
                   Con {uploadedImages.length} foto(s) no alcanza para entrenar.
@@ -196,7 +192,16 @@ export function UploadView({
             <button
               onClick={handleStartClick}
               disabled={isButtonDisabled}
-              className="w-full mt-6 bg-black text-white py-3.5 md:py-4 rounded-xl font-bold text-base md:text-lg hover:bg-gray-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              className={`
+                w-full mt-6 bg-black text-white py-3.5 md:py-4 rounded-xl
+                font-bold text-base md:text-lg transition hover:bg-gray-800
+                ${
+                  showPointerCursor
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed"
+                }
+                disabled:opacity-60
+              `}
             >
               {buttonLabel}
             </button>
@@ -210,7 +215,7 @@ export function UploadView({
           </>
         )}
 
-        {/* Estado Entrenamiento */}
+        {/* Estado entrenamiento */}
         {trainingId && (
           <div className="mt-6 bg-orange-50 p-6 rounded-xl border border-orange-100 text-left">
             <p className="font-bold text-orange-800 mb-1">
@@ -220,10 +225,12 @@ export function UploadView({
               ID de entrenamiento:{" "}
               <span className="font-mono text-xs break-all">{trainingId}</span>
             </p>
-            <p className="text-sm text-gray-600">Estado actual: {status}</p>
+            <p className="text-sm text-gray-600">
+              Estado actual: {status}
+            </p>
             <button
               onClick={onCheckStatus}
-              className="text-xs mt-3 inline-flex items-center gap-1 text-orange-700 hover:text-orange-900 underline"
+              className="text-xs mt-3 inline-flex items-center gap-1 text-orange-700 hover:text-orange-900 underline cursor-pointer"
             >
               Actualizar estado
             </button>

@@ -251,7 +251,7 @@ export function HomeView({ onCreateClick }: HomeViewProps) {
                 <span className="text-[10px] text-orange-600 font-semibold" />
               </div>
               <p>
-                20 retratos listos para descargar en alta calidad para todas tus
+                40 retratos listos para descargar en alta calidad para todas tus
                 redes.
               </p>
             </div>

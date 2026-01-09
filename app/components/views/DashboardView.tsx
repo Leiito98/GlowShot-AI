@@ -493,7 +493,7 @@ export function DashboardView({
           </p>
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-900 transition"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-gray-900 transition cursor-pointer"
           >
             Subir mis fotos
             <span>→</span>

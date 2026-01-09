@@ -1,22 +1,14 @@
 // app/api/mp/create-checkout/route.js
 import { auth } from "@clerk/nextjs/server";
+import { PLANS } from "@/app/config/plans";
 
 export const runtime = "nodejs";
 
-const PRICE_MAP = {
-  basic: {
-    title: "AuraShot – Plan Basic",
-    unit_price: Number(process.env.MP_PRICE_BASIC_ARS || 14999),
-  },
-  standard: {
-    title: "AuraShot – Plan Standard",
-    unit_price: Number(process.env.MP_PRICE_STANDARD_ARS || 21999),
-  },
-  executive: {
-    title: "AuraShot – Plan Executive",
-    unit_price: Number(process.env.MP_PRICE_EXECUTIVE_ARS || 34999),
-  },
-};
+// Fallback por si DolarApi falla (ponelo en env si querés)
+const FALLBACK_BLUE_ARS = Number(process.env.FALLBACK_BLUE_ARS || 1300);
+
+// Cache del fetch (5 min) para no pegarle a la API siempre
+const BLUE_REVALIDATE_SECONDS = Number(process.env.BLUE_REVALIDATE_SECONDS || 300);
 
 function normalizeBaseUrl(url) {
   return String(url || "").trim().replace(/\/$/, "");
@@ -29,14 +21,10 @@ function normalizeBaseUrl(url) {
 function getAppBaseUrl() {
   const appUrl =
     normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
-    normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL) || // fallback si usabas esto
+    normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL) ||
     "";
 
-  if (!appUrl) {
-    // 🚨 Sin base url no podemos armar back_urls ni notification_url correctamente
-    // devolvemos string vacío y lo manejamos en el handler
-    return "";
-  }
+  if (!appUrl) return "";
 
   // Si por error te ponen /api/... o /api/mp/webhook, lo limpiamos
   return appUrl.replace(/\/api\/.*$/i, "");
@@ -44,6 +32,45 @@ function getAppBaseUrl() {
 
 function isValidPlanId(planId) {
   return planId === "basic" || planId === "standard" || planId === "executive";
+}
+
+function findPlan(planId) {
+  return PLANS.find((p) => p.id === planId) || null;
+}
+
+async function getDolarBlueVenta() {
+  try {
+    const res = await fetch("https://dolarapi.com/v1/dolares/blue", {
+      next: { revalidate: BLUE_REVALIDATE_SECONDS },
+      headers: { accept: "application/json" },
+    });
+
+    if (!res.ok) throw new Error(`DolarApi status ${res.status}`);
+    const data = await res.json();
+
+    // En la doc se ve: { compra: number, venta: number, ... }
+    const venta = Number(data?.venta);
+    if (!Number.isFinite(venta) || venta <= 0) throw new Error("venta inválida");
+
+    return venta;
+  } catch (e) {
+    console.warn("⚠️ DolarApi falló, usando fallback:", e?.message || e);
+    return FALLBACK_BLUE_ARS;
+  }
+}
+
+function arsFromUsd(usd, blueVenta) {
+  // MP funciona mejor con enteros en ARS
+  const n = Number(usd) * Number(blueVenta);
+  return Math.round(n);
+}
+
+// (Opcional) “precio psicológico”
+function roundToNearest(value, step = 10) {
+  const v = Number(value);
+  const s = Number(step);
+  if (!Number.isFinite(v) || !Number.isFinite(s) || s <= 0) return value;
+  return Math.round(v / s) * s;
 }
 
 export async function POST(request) {
@@ -67,8 +94,16 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const planId = String(body?.planId || "").trim();
 
-    if (!isValidPlanId(planId) || !PRICE_MAP[planId]) {
+    if (!isValidPlanId(planId)) {
       return new Response(JSON.stringify({ error: "planId inválido" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const plan = findPlan(planId);
+    if (!plan) {
+      return new Response(JSON.stringify({ error: "Plan no encontrado" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -91,7 +126,18 @@ export async function POST(request) {
     // ✅ MP_MODE=sandbox | production
     const mpMode = String(process.env.MP_MODE || "sandbox").toLowerCase();
 
-    const item = PRICE_MAP[planId];
+    // ✅ Dólar blue (VENTA) del día
+    const blueVenta = await getDolarBlueVenta();
+
+    // ✅ Precio final en ARS desde USD (plans.ts)
+    // plan.price = USD
+    let unitPriceArs = arsFromUsd(plan.price, blueVenta);
+
+    // (Opcional) redondeo a 10 / 50 / 100 para estética
+    // Cambiá el step o eliminá esta línea si no lo querés.
+    unitPriceArs = roundToNearest(unitPriceArs, 10);
+
+    const title = `AuraShot – ${plan.name}`;
 
     // ✅ Esto es CLAVE para tu webhook (fallback robusto)
     const external_reference = `${userId}:${planId}`;
@@ -103,9 +149,9 @@ export async function POST(request) {
     const preferencePayload = {
       items: [
         {
-          title: item.title,
+          title,
           quantity: 1,
-          unit_price: item.unit_price,
+          unit_price: unitPriceArs,
           currency_id: "ARS",
         },
       ],
@@ -118,10 +164,15 @@ export async function POST(request) {
 
       external_reference,
 
-      // (Opcional) también en metadata
-      metadata: { app_user_id: userId, plan_id: planId },
+      // metadata útil para auditoría / debugging
+      metadata: {
+        app_user_id: userId,
+        plan_id: planId,
+        usd_price: plan.price,
+        blue_venta: blueVenta,
+        ars_price: unitPriceArs,
+      },
 
-      // ✅ MUY IMPORTANTE: sin esto no te llega el webhook
       notification_url,
     };
 
@@ -130,6 +181,9 @@ export async function POST(request) {
       mpMode,
       notification_url,
       external_reference,
+      blueVenta,
+      usdPrice: plan.price,
+      unitPriceArs,
       back_urls: preferencePayload.back_urls,
     });
 
@@ -180,6 +234,11 @@ export async function POST(request) {
         initPoint,
         sandboxInitPoint,
         mode: mpMode,
+
+        // 👇 útiles para debug/mostrar en tu frontend si querés
+        blueVenta,
+        usdPrice: plan.price,
+        unitPriceArs,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

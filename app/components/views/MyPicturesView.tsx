@@ -29,7 +29,7 @@ export function MyPicturesView({ images, onBackToHome }: MyPicturesViewProps) {
 
           <button
             onClick={onBackToHome}
-            className="px-3 py-1.5 rounded-full border text-xs sm:text-sm font-medium hover:bg-gray-50"
+            className="px-3 py-1.5 rounded-full border text-xs sm:text-sm font-medium hover:bg-gray-50 cursor-pointer"
           >
             ← Volver
           </button>

@@ -177,7 +177,7 @@ export function PayModal({
               <button
                 type="button"
                 onClick={() => setStep("plan")}
-                className="mt-3 text-sm text-gray-500 hover:text-black underline"
+                className="mt-3 text-sm text-gray-500 hover:text-black underline cursor-pointer"
               >
                 Cambiar pack
               </button>
