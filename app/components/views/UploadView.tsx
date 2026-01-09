@@ -95,6 +95,14 @@ export function UploadView({
   statusLabel === "starting" ? "Starting" :
   statusLabel;
 
+  const statusColor =
+  statusLabel === "processing"
+    ? "text-blue-600"
+    : statusLabel === "completed"
+    ? "text-green-600"
+    : statusLabel === "failed"
+    ? "text-red-600"
+    : "text-gray-800";
 
   const handleCheckStatusClick = async () => {
     try {
@@ -126,10 +134,6 @@ export function UploadView({
         <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2 text-xs">
           <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-gray-700">
             <span className="font-semibold">Créditos:</span> {credits}
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-orange-900">
-            <span className="font-semibold">Costo de entrenamiento:</span>{" "}
-            {trainCost}
           </span>
         </div>
 
@@ -243,10 +247,24 @@ export function UploadView({
               <span className="font-mono text-xs break-all">{trainingId}</span>
             </p>
 
-            <p className="text-sm text-gray-600">
-              Estado actual:{" "}
-              <span className="font-medium text-gray-800">{pretty}</span>
-            </p>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <span className="text-sm text-gray-600">Estado actual:</span>
+
+              <span
+                className={`
+                  inline-flex items-center gap-1.5
+                  px-3 py-1
+                  rounded-full border
+                  text-xs font-semibold
+                  ${statusColor}
+                `}
+              >
+                {statusLabel === "processing" && (
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                )}
+                {pretty}
+              </span>
+            </div>
 
             <button
               onClick={handleCheckStatusClick}

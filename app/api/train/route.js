@@ -56,31 +56,6 @@ async function getCredits(userId) {
   return Number(data?.credits || 0);
 }
 
-async function deductCreditsOptimistic(userId, current, cost) {
-  const next = current - cost;
-
-  const { data, error } = await supabaseAdmin
-    .from("user_credits")
-    .update({ credits: next })
-    .eq("user_id", userId)
-    .eq("credits", current)
-    .select("credits")
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) return { ok: false, credits: current };
-  return { ok: true, credits: Number(data.credits || next) };
-}
-
-async function refundCredits(userId, amount) {
-  const current = await getCredits(userId);
-  const { error } = await supabaseAdmin
-    .from("user_credits")
-    .update({ credits: current + amount })
-    .eq("user_id", userId);
-  if (error) console.error("⚠️ refundCredits error:", error);
-}
-
 export async function POST(request) {
   const startedAt = new Date().toISOString();
 
@@ -133,15 +108,6 @@ export async function POST(request) {
       );
     }
 
-    // 3) Descontar créditos (optimistic lock)
-    const dec = await deductCreditsOptimistic(userId, creditsNow, TRAIN_COST);
-    if (!dec.ok) {
-      return NextResponse.json(
-        { error: "RETRY", message: "Reintentá en un momento." },
-        { status: 409 }
-      );
-    }
-
     // 4) Crear ZIP
     const zip = new JSZip();
     let i = 0;
@@ -164,7 +130,6 @@ export async function POST(request) {
       .upload(zipPath, zipBuffer, { contentType: "application/zip" });
 
     if (uploadError) {
-      await refundCredits(userId, TRAIN_COST);
       return NextResponse.json(
         { error: "No se pudo subir el ZIP de entrenamiento." },
         { status: 500 }
@@ -186,7 +151,6 @@ export async function POST(request) {
     // 7) Webhook URL (BASE limpia)
     const baseUrl = getAppBaseUrl();
     if (!baseUrl) {
-      await refundCredits(userId, TRAIN_COST);
       return NextResponse.json(
         {
           error: "APP_URL_MISSING",
@@ -218,7 +182,6 @@ export async function POST(request) {
         }
       );
     } catch (e) {
-      await refundCredits(userId, TRAIN_COST);
       return NextResponse.json(
         {
           error: "TRAINING_BLOCKED",
