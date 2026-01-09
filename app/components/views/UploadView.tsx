@@ -1,7 +1,7 @@
 // app/components/views/UploadView.tsx
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 type UploadViewProps = {
   onBack: () => void;
@@ -12,7 +12,7 @@ type UploadViewProps = {
   onStartTraining: () => void;
   trainingId: string | null;
   status: string;
-  onCheckStatus: () => void;
+  onCheckStatus: () => Promise<void> | void; // <-- permite async
 
   // créditos del usuario
   credits: number;
@@ -45,6 +45,9 @@ export function UploadView({
   const hasMinPhotos = uploadedImages.length >= 6;
   const hasEnoughCredits = credits >= trainCost;
   const missingCredits = Math.max(0, trainCost - credits);
+
+  // UI local: “Processing…” solo al apretar actualizar estado
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
   // puede iniciar entrenamiento real
   const canStartTraining =
@@ -83,6 +86,18 @@ export function UploadView({
   const showPointerCursor =
     buttonLabel === "Iniciar entrenamiento de mi modelo" ||
     buttonLabel === "Comprar créditos para entrenar";
+
+  // Mostrar “Processing…” solo en UI mientras chequea
+  const statusLabel = isCheckingStatus ? "Processing..." : status;
+
+  const handleCheckStatusClick = async () => {
+    try {
+      setIsCheckingStatus(true);
+      await onCheckStatus?.();
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-6 pt-10 text-center">
@@ -195,11 +210,7 @@ export function UploadView({
               className={`
                 w-full mt-6 bg-black text-white py-3.5 md:py-4 rounded-xl
                 font-bold text-base md:text-lg transition hover:bg-gray-800
-                ${
-                  showPointerCursor
-                    ? "cursor-pointer"
-                    : "cursor-not-allowed"
-                }
+                ${showPointerCursor ? "cursor-pointer" : "cursor-not-allowed"}
                 disabled:opacity-60
               `}
             >
@@ -225,14 +236,23 @@ export function UploadView({
               ID de entrenamiento:{" "}
               <span className="font-mono text-xs break-all">{trainingId}</span>
             </p>
+
             <p className="text-sm text-gray-600">
-              Estado actual: {status}
+              Estado actual:{" "}
+              <span className="font-medium text-gray-800">{statusLabel}</span>
             </p>
+
             <button
-              onClick={onCheckStatus}
-              className="text-xs mt-3 inline-flex items-center gap-1 text-orange-700 hover:text-orange-900 underline cursor-pointer"
+              onClick={handleCheckStatusClick}
+              disabled={isCheckingStatus}
+              className={`text-xs mt-3 inline-flex items-center gap-1 underline
+                ${
+                  isCheckingStatus
+                    ? "text-gray-400 cursor-not-allowed"
+                    : "text-orange-700 hover:text-orange-900 cursor-pointer"
+                }`}
             >
-              Actualizar estado
+              {isCheckingStatus ? "Actualizando..." : "Actualizar estado"}
             </button>
           </div>
         )}

@@ -365,22 +365,25 @@ export default function DashboardClient() {
   // --- Chequear estado ---
   const checkStatus = async () => {
     if (!trainingId) return;
-
+  
     try {
       const res = await fetch("/api/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ trainingId }),
       });
-
+  
       const data = await res.json();
-      setStatus(String(data.status || "processing"));
-
-      if (data.status === "completed" && data.weights) {
+  
+      // ✅ NO setear "processing" como fallback (eso es solo UI)
+      // Si no viene status, dejamos el que ya teníamos
+      if (data?.status) setStatus(String(data.status));
+  
+      if (data?.status === "completed" && data?.weights) {
         setWeightsUrl(String(data.weights));
-
+  
         if (data.trigger) localStorage.setItem("trigger_word", String(data.trigger));
-
+  
         setMode("dashboard");
         pushToast("Tu modelo Flux está listo. ¡Ya puedes generar fotos! ✨", "success");
       }

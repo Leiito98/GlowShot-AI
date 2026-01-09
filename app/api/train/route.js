@@ -22,16 +22,28 @@ const FAST_FLUX_VERSION =
 
 const TRAIN_COST = 40;
 
-function getAppUrl() {
-  // preferí APP_URL (server) si lo tenés, sino NEXT_PUBLIC_APP_URL
-  const u =
+function normalizeBaseUrl(url) {
+  // deja solo protocolo+host (sin paths raros tipo /api/...)
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    const s = String(url || "").trim();
+    // si viene sin http, lo completa
+    if (!s) return "";
+    if (s.startsWith("http")) return s.replace(/\/$/, "");
+    return `https://${s.replace(/\/$/, "")}`;
+  }
+}
+
+function getAppBaseUrl() {
+  // MUY IMPORTANTE: que sea la raíz, no /api/... ni nada
+  const raw =
     process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.VERCEL_URL ||
     "";
-  if (!u) return "";
-  if (u.startsWith("http")) return u;
-  return `https://${u}`;
+  return normalizeBaseUrl(raw);
 }
 
 async function getCredits(userId) {
@@ -40,12 +52,10 @@ async function getCredits(userId) {
     .select("credits")
     .eq("user_id", userId)
     .maybeSingle();
-
   if (error) throw error;
   return Number(data?.credits || 0);
 }
 
-// descuento con optimistic lock: update solo si el valor coincide
 async function deductCreditsOptimistic(userId, current, cost) {
   const next = current - cost;
 
@@ -63,7 +73,6 @@ async function deductCreditsOptimistic(userId, current, cost) {
 }
 
 async function refundCredits(userId, amount) {
-  // reintegro simple: leo y seteo (para no depender de RPC)
   const current = await getCredits(userId);
   const { error } = await supabaseAdmin
     .from("user_credits")
@@ -84,7 +93,7 @@ export async function POST(request) {
     // 0) Si ya tiene LoRA completed, no re-entrenar
     const { data: existing } = await supabaseAdmin
       .from("predictions")
-      .select("training_id, status, lora_url")
+      .select("training_id, status, lora_url, trigger_word")
       .eq("user_id", userId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
@@ -96,12 +105,14 @@ export async function POST(request) {
         message: "Ya tienes un LoRA entrenado.",
         trainingId: existing.training_id,
         loraWeights: existing.lora_url,
+        trigger_word: existing.trigger_word,
+        status: "completed",
       });
     }
 
     // 1) Validar fotos
     const { images } = await request.json();
-    if (!images || images.length < 6) {
+    if (!images || images.length < 1) {
       return NextResponse.json(
         { error: "Debes enviar al menos 6 imágenes." },
         { status: 400 }
@@ -125,7 +136,6 @@ export async function POST(request) {
     // 3) Descontar créditos (optimistic lock)
     const dec = await deductCreditsOptimistic(userId, creditsNow, TRAIN_COST);
     if (!dec.ok) {
-      // alguien actualizó créditos al mismo tiempo
       return NextResponse.json(
         { error: "RETRY", message: "Reintentá en un momento." },
         { status: 409 }
@@ -173,45 +183,23 @@ export async function POST(request) {
     const cleanId = sanitized.replace(/[^a-z0-9]/g, "");
     const trigger = `lora_${cleanId.slice(0, 10)}`;
 
-    const appUrl = getAppUrl();
-    if (!appUrl) {
+    // 7) Webhook URL (BASE limpia)
+    const baseUrl = getAppBaseUrl();
+    if (!baseUrl) {
       await refundCredits(userId, TRAIN_COST);
       return NextResponse.json(
         {
           error: "APP_URL_MISSING",
           message:
-            "Falta configurar APP_URL / NEXT_PUBLIC_APP_URL para el webhook.",
+            "Falta configurar APP_URL / NEXT_PUBLIC_APP_URL (base). Debe ser la raíz, ej: https://tuapp.vercel.app",
         },
         { status: 500 }
       );
     }
 
-    const webhookUrl = `${appUrl}/api/replicate-webhook`;
+    const webhookUrl = `${baseUrl}/api/replicate-webhook`;
 
-    // 7) Crear registro prediction (estado starting, sin training_id aún)
-    const { data: predRow, error: predInsErr } = await supabaseAdmin
-      .from("predictions")
-      .insert({
-        user_id: userId,
-        training_id: null,
-        trigger_word: trigger,
-        status: "starting",
-        lora_url: null,
-        created_at: startedAt,
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (predInsErr) {
-      await refundCredits(userId, TRAIN_COST);
-      console.error("❌ predictions insert error:", predInsErr);
-      return NextResponse.json(
-        { error: "DB error creating prediction" },
-        { status: 500 }
-      );
-    }
-
-    // 8) Lanzar entrenamiento en Replicate
+    // 8) Crear training en Replicate (PRIMERO)
     let training;
     try {
       training = await replicate.trainings.create(
@@ -230,41 +218,39 @@ export async function POST(request) {
         }
       );
     } catch (e) {
-      // Replicate sin saldo / error externo => reintegro + marco prediction failed
       await refundCredits(userId, TRAIN_COST);
-
-      await supabaseAdmin
-        .from("predictions")
-        .update({
-          status: "failed",
-          error: `Replicate error: ${String(e?.message || e)}`,
-          finished_at: new Date().toISOString(),
-        })
-        .eq("id", predRow.id);
-
       return NextResponse.json(
         {
           error: "TRAINING_BLOCKED",
           message:
-            "En estos momentos no podemos entrenar tu modelo. En instantes será resuelto.",
-          blockedReason:
-            "Servicio de entrenamiento temporalmente no disponible (Replicate).",
+            "No se pudo iniciar el entrenamiento. Se reintegraron los créditos.",
+          details: String(e?.message || e),
         },
         { status: 503 }
       );
     }
 
-    // 9) Guardar training_id en prediction
-    await supabaseAdmin
-      .from("predictions")
-      .update({ training_id: training.id })
-      .eq("id", predRow.id);
+    // 9) Insertar prediction YA con training_id correcto (como tu route viejo)
+    const { error: predInsErr } = await supabaseAdmin.from("predictions").insert({
+      user_id: userId,
+      training_id: training.id,
+      trigger_word: trigger,
+      status: "starting",
+      lora_url: null,
+      created_at: startedAt,
+    });
+
+    if (predInsErr) {
+      // Importantísimo: acá NO reintegro créditos, porque el training ya se lanzó.
+      // Pero te dejo un log para que lo veas y puedas crear un "recovery" si querés.
+      console.error("❌ predictions insert error (training ya lanzado):", predInsErr);
+    }
 
     return NextResponse.json({
       id: training.id,
       trigger_word: trigger,
       status: "starting",
-      remainingCredits: dec.credits, // ya descontado
+      remainingCredits: dec.credits,
     });
   } catch (err) {
     console.error("❌ ERROR TRAIN:", err);
