@@ -52,7 +52,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "trainingId requerido" }, { status: 400 });
     }
 
-    // 1) Buscar en nuestra DB
+    // 1) DB
     const { data: record, error: dbErr } = await supabaseAdmin
       .from("predictions")
       .select("status,lora_url,trigger_word,user_id")
@@ -63,12 +63,11 @@ export async function POST(request) {
       return NextResponse.json({ status: "not_found", weights: null }, { status: 404 });
     }
 
-    // Seguridad: que el training sea del usuario
     if (record.user_id && record.user_id !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // 2) Si terminó → devolver URL (como tu viejo)
+    // 2) Si DB ya está completed
     if (record.status === "completed" && record.lora_url) {
       return NextResponse.json({
         status: "completed",
@@ -77,29 +76,31 @@ export async function POST(request) {
       });
     }
 
-    // 3) Fallback: consulto Replicate (pero NO guardo processing en DB)
+    // 3) Consultar Replicate (source of truth para “qué está pasando ahora”)
     let training;
     try {
       training = await replicate.trainings.get(trainingId);
-    } catch (e) {
-      // si no puedo consultar, devuelvo tal cual tu viejo
+    } catch {
+      // si falla replicate, devolvemos lo de DB (como el viejo)
       return NextResponse.json({
-        status: record.status,
+        status: record.status || "starting",
         weights: null,
+        trigger: record.trigger_word,
       });
     }
 
     const repStatus = String(training?.status || "");
 
-    // 4) Si ya terminó en Replicate, sincronizo DB (solo terminales)
+    // 4) Terminales: sincronizar DB
     if (repStatus === "succeeded") {
       const tarUrl = extractTarUrl(training?.output);
 
-      // si no hay .tar todavía, devolvemos el estado actual sin tocar DB
       if (!tarUrl) {
+        // training terminó pero no vemos .tar todavía (raro) => devolvemos status de replicate
         return NextResponse.json({
-          status: record.status || "starting",
+          status: "processing",
           weights: null,
+          trigger: record.trigger_word,
         });
       }
 
@@ -133,13 +134,22 @@ export async function POST(request) {
       return NextResponse.json({
         status: repStatus,
         weights: null,
+        trigger: record.trigger_word,
       });
     }
 
-    // 5) Si está corriendo (starting/processing), devuelvo como el viejo (sin tocar DB)
+    // 5) NO terminal (processing / starting): NO guardar en DB, PERO devolverlo al front
+    // Así el cliente ve el estado real actual.
+    const liveStatus =
+      repStatus === "processing" ? "processing" :
+      repStatus === "starting" ? "starting" :
+      // por si replicate manda algo distinto, devolvemos lo que venga o fallback al DB
+      repStatus || record.status || "starting";
+
     return NextResponse.json({
-      status: record.status || "starting",
+      status: liveStatus,
       weights: null,
+      trigger: record.trigger_word,
     });
   } catch (err) {
     console.error("❌ ERROR /api/status:", err);

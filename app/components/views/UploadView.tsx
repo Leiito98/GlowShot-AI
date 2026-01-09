@@ -90,6 +90,12 @@ export function UploadView({
   // Mostrar “Processing…” solo en UI mientras chequea
   const statusLabel = isCheckingStatus ? "Processing..." : status;
 
+  const pretty =
+  statusLabel === "processing" ? "Processing" :
+  statusLabel === "starting" ? "Starting" :
+  statusLabel;
+
+
   const handleCheckStatusClick = async () => {
     try {
       setIsCheckingStatus(true);
@@ -239,7 +245,7 @@ export function UploadView({
 
             <p className="text-sm text-gray-600">
               Estado actual:{" "}
-              <span className="font-medium text-gray-800">{statusLabel}</span>
+              <span className="font-medium text-gray-800">{pretty}</span>
             </p>
 
             <button
